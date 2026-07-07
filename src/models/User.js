@@ -9,8 +9,14 @@ const userSchema = new mongoose.Schema(
     roleId: { type: mongoose.Schema.Types.ObjectId, ref: "Role", required: true },
     status: {
       type: String,
-      enum: ["active", "inactive", "suspended"],
+      enum: ["active", "inactive", "pending", "suspended"],
       default: "active",
+      index: true,
+    },
+    inviteStatus: {
+      type: String,
+      enum: ["pending", "accepted", "expired", "none"],
+      default: "none",
       index: true,
     },
     lastLoginAt: { type: Date, default: null },

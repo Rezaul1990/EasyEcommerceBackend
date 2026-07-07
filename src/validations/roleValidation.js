@@ -6,6 +6,7 @@ const roleSchema = z.object({
     slug: z.string().min(2).regex(/^[a-z0-9-]+$/),
     description: z.string().optional().default(""),
     permissions: z.array(z.string()).default([]),
+    status: z.enum(["active", "inactive"]).optional().default("active"),
   }),
 });
 

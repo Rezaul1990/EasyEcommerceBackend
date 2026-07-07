@@ -11,4 +11,8 @@ async function me(req, res) {
   return sendSuccess(res, { message: "Current user loaded", data });
 }
 
-module.exports = { login, me };
+async function logout(req, res) {
+  return sendSuccess(res, { message: "Logout successful", data: null });
+}
+
+module.exports = { login, me, logout };

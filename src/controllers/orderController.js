@@ -18,4 +18,51 @@ async function updateOrderStatus(req, res) {
   return sendSuccess(res, { message: "Order status updated", data });
 }
 
-module.exports = { createOrder, listOrders, updateOrderStatus };
+async function getOrder(req, res) {
+  const data = await orderService.getOrder(req.params.id);
+  return sendSuccess(res, { message: "Order loaded", data });
+}
+
+async function updatePayment(req, res) {
+  const data = await orderService.updatePayment(req.params.id, req.body, req.user._id);
+  await writeAudit({ req, action: "payment_update", module: "orders", targetType: "Order", targetId: data._id, newValue: req.body });
+  return sendSuccess(res, { message: "Payment updated", data });
+}
+
+async function updateCourier(req, res) {
+  const data = await orderService.updateCourier(req.params.id, req.body, req.user._id);
+  await writeAudit({ req, action: "courier_update", module: "orders", targetType: "Order", targetId: data._id, newValue: req.body });
+  return sendSuccess(res, { message: "Courier updated", data });
+}
+
+async function updateNote(req, res) {
+  const data = await orderService.updateNote(req.params.id, req.body.internalNote, req.user._id);
+  return sendSuccess(res, { message: "Order note updated", data });
+}
+
+async function trackOrder(req, res) {
+  const data = await orderService.trackOrder(req.body);
+  return sendSuccess(res, { message: "Order tracking loaded", data });
+}
+
+async function listCouriers(req, res) {
+  const data = await orderService.listCouriers();
+  return sendSuccess(res, { message: "Couriers loaded", data });
+}
+
+async function createCourier(req, res) {
+  const data = await orderService.createCourier(req.body);
+  return sendSuccess(res, { statusCode: 201, message: "Courier created", data });
+}
+
+async function updateCourierCompany(req, res) {
+  const data = await orderService.updateCourierCompany(req.params.id, req.body);
+  return sendSuccess(res, { message: "Courier updated", data });
+}
+
+async function deleteCourier(req, res) {
+  const data = await orderService.deleteCourier(req.params.id);
+  return sendSuccess(res, { message: "Courier deleted", data });
+}
+
+module.exports = { createOrder, listOrders, getOrder, updateOrderStatus, updatePayment, updateCourier, updateNote, trackOrder, listCouriers, createCourier, updateCourierCompany, deleteCourier };

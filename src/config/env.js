@@ -9,6 +9,7 @@ const env = {
   jwtSecret: process.env.JWT_SECRET || "development-only-change-me",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000",
+  uploadDir: process.env.UPLOAD_DIR || "uploads",
 };
 
 module.exports = { env };

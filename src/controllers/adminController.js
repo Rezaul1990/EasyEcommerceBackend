@@ -18,6 +18,11 @@ async function listRoles(req, res) {
   return sendSuccess(res, { message: "Roles loaded", data });
 }
 
+async function getRole(req, res) {
+  const data = await adminService.getRole(req.params.id);
+  return sendSuccess(res, { message: "Role loaded", data });
+}
+
 async function createRole(req, res) {
   const data = await adminService.createRole(req.body, req.user._id);
   await writeAudit({ req, action: "create", module: "roles", targetType: "Role", targetId: data._id, newValue: data });
@@ -30,15 +35,64 @@ async function updateRole(req, res) {
   return sendSuccess(res, { message: "Role updated", data });
 }
 
+async function deleteRole(req, res) {
+  const data = await adminService.deleteRole(req.params.id);
+  await writeAudit({ req, action: "delete", module: "roles", targetType: "Role", targetId: data._id, oldValue: data });
+  return sendSuccess(res, { message: "Role deleted", data });
+}
+
 async function listStaff(req, res) {
   const data = await adminService.listStaff();
   return sendSuccess(res, { message: "Staff loaded", data });
 }
 
+async function getStaff(req, res) {
+  const data = await adminService.getStaff(req.params.id);
+  return sendSuccess(res, { message: "Staff user loaded", data });
+}
+
 async function createStaff(req, res) {
   const data = await adminService.createStaff(req.body, req.user._id);
-  await writeAudit({ req, action: "create", module: "staff", targetType: "User", targetId: data.id, newValue: data });
-  return sendSuccess(res, { statusCode: 201, message: "Staff user created", data });
+  await writeAudit({ req, action: "create", module: "staff", targetType: "User", targetId: data.user.id, newValue: data.user });
+  return sendSuccess(res, { statusCode: 201, message: "Staff invite created", data });
+}
+
+async function updateStaff(req, res) {
+  const data = await adminService.updateStaff(req.params.id, req.body, req.user._id);
+  await writeAudit({ req, action: "update", module: "staff", targetType: "User", targetId: data.id, newValue: data });
+  return sendSuccess(res, { message: "Staff user updated", data });
+}
+
+async function deleteStaff(req, res) {
+  const data = await adminService.deleteStaff(req.params.id);
+  await writeAudit({ req, action: "delete", module: "staff", targetType: "User", targetId: data.id, oldValue: data });
+  return sendSuccess(res, { message: "Staff user deleted", data });
+}
+
+async function resendInvite(req, res) {
+  const data = await adminService.resendInvite(req.params.id, req.user._id);
+  await writeAudit({ req, action: "resend_invite", module: "staff", targetType: "User", targetId: req.params.id, newValue: { expiresInDays: data.expiresInDays } });
+  return sendSuccess(res, { message: "Invite link created", data });
+}
+
+async function verifyInvite(req, res) {
+  const data = await adminService.verifyInvite(req.params.token);
+  return sendSuccess(res, { message: "Invite link is valid", data });
+}
+
+async function acceptInvite(req, res) {
+  const data = await adminService.acceptInvite(req.body);
+  return sendSuccess(res, { message: "Password setup complete", data });
+}
+
+async function myPermissions(req, res) {
+  const data = adminService.currentPermissions(req.user);
+  return sendSuccess(res, { message: "Permissions loaded", data });
+}
+
+async function mySidebar(req, res) {
+  const data = adminService.sidebarForUser(req.user);
+  return sendSuccess(res, { message: "Sidebar loaded", data });
 }
 
 async function getSettings(req, res) {
@@ -61,10 +115,20 @@ module.exports = {
   permissions,
   dashboard,
   listRoles,
+  getRole,
   createRole,
   updateRole,
+  deleteRole,
   listStaff,
+  getStaff,
   createStaff,
+  updateStaff,
+  deleteStaff,
+  resendInvite,
+  verifyInvite,
+  acceptInvite,
+  myPermissions,
+  mySidebar,
   getSettings,
   updateSettings,
   auditLogs,

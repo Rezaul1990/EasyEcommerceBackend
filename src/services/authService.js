@@ -68,12 +68,12 @@ async function seedSystemRoles() {
 }
 
 async function createOwnerFromEnv() {
-  const name = process.env.OWNER_NAME;
-  const email = process.env.OWNER_EMAIL;
-  const password = process.env.OWNER_PASSWORD;
+  const name = process.env.SEED_OWNER_NAME || "Store Owner";
+  const email = process.env.SEED_OWNER_EMAIL || process.env.OWNER_EMAIL;
+  const password = process.env.SEED_OWNER_PASSWORD || process.env.OWNER_PASSWORD;
 
   if (!name || !email || !password) {
-    throw new AppError("OWNER_NAME, OWNER_EMAIL, and OWNER_PASSWORD are required for owner seed.", 400);
+    throw new AppError("SEED_OWNER_EMAIL and SEED_OWNER_PASSWORD are required for owner seed.", 400);
   }
 
   await seedSystemRoles();

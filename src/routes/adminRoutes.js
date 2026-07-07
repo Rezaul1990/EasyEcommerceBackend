@@ -1,21 +1,30 @@
 const express = require("express");
 const adminController = require("../controllers/adminController");
 const catalogController = require("../controllers/catalogController");
+const inventoryController = require("../controllers/inventoryController");
 const orderController = require("../controllers/orderController");
+const settingsController = require("../controllers/settingsController");
 const { requireAuth, requirePermission } = require("../middlewares/authMiddleware");
+const { uploadImages, uploadImportFile } = require("../middlewares/uploadMiddleware");
 const { validate } = require("../middlewares/validate");
-const { categorySchema, productSchema, listProductsSchema, idParamsSchema } = require("../validations/catalogValidation");
-const { updateOrderStatusSchema } = require("../validations/orderValidation");
+const { categorySchema, productSchema, listProductsSchema, idParamsSchema, couponSchema } = require("../validations/catalogValidation");
+const { updateOrderStatusSchema, updatePaymentSchema, updateCourierSchema, noteSchema } = require("../validations/orderValidation");
 const { roleSchema } = require("../validations/roleValidation");
-const { createStaffSchema } = require("../validations/authValidation");
+const { createStaffSchema, updateUserSchema, inviteTokenParamsSchema, acceptInviteSchema } = require("../validations/authValidation");
 const { asyncHandler } = require("../utils/asyncHandler");
 
 const router = express.Router();
 
+router.get("/invites/verify/:token", validate(inviteTokenParamsSchema), asyncHandler(adminController.verifyInvite));
+router.post("/invites/accept", validate(acceptInviteSchema), asyncHandler(adminController.acceptInvite));
+
 router.use(requireAuth);
 
 router.get("/dashboard", requirePermission("dashboard.view"), asyncHandler(adminController.dashboard));
+router.get("/dashboard/summary", requirePermission("dashboard.view"), asyncHandler(adminController.dashboard));
 router.get("/permissions", requirePermission("roles.view"), asyncHandler(adminController.permissions));
+router.get("/me/permissions", asyncHandler(adminController.myPermissions));
+router.get("/me/sidebar", asyncHandler(adminController.mySidebar));
 
 router.get("/categories", requirePermission("categories.view"), asyncHandler(catalogController.adminCategories));
 router.post("/categories", requirePermission("categories.create"), validate(categorySchema), asyncHandler(catalogController.createCategory));
@@ -27,18 +36,65 @@ router.post("/products", requirePermission("products.create"), validate(productS
 router.put("/products/:id", requirePermission("products.update"), validate(idParamsSchema), validate(productSchema), asyncHandler(catalogController.updateProduct));
 router.delete("/products/:id", requirePermission("products.delete"), validate(idParamsSchema), asyncHandler(catalogController.deleteProduct));
 
+router.get("/coupons", requirePermission("coupons.view"), asyncHandler(catalogController.adminCoupons));
+router.post("/coupons", requirePermission("coupons.create"), validate(couponSchema), asyncHandler(catalogController.createCoupon));
+router.get("/coupons/:id", requirePermission("coupons.view"), validate(idParamsSchema), asyncHandler(catalogController.getCoupon));
+router.put("/coupons/:id", requirePermission("coupons.update"), validate(idParamsSchema), validate(couponSchema), asyncHandler(catalogController.updateCoupon));
+router.delete("/coupons/:id", requirePermission("coupons.delete"), validate(idParamsSchema), asyncHandler(catalogController.deleteCoupon));
+
+router.post("/uploads/images", requirePermission("products.create"), uploadImages.array("images", 10), asyncHandler(catalogController.uploadImages));
+
+router.get("/inventory", requirePermission("inventory.view"), asyncHandler(inventoryController.listInventory));
+router.get("/inventory/low-stock", requirePermission("inventory.view"), asyncHandler(inventoryController.lowStock));
+router.get("/inventory/out-of-stock", requirePermission("inventory.view"), asyncHandler(inventoryController.outOfStock));
+router.get("/inventory/movements", requirePermission("inventory.view"), asyncHandler(inventoryController.movements));
+router.get("/inventory/:type/demo-download", requirePermission("inventory.view"), asyncHandler(inventoryController.demoDownload));
+router.post("/inventory/restock-import", requirePermission("inventory.update"), uploadImportFile.single("file"), asyncHandler(inventoryController.restockImport));
+router.get("/inventory/import-history", requirePermission("inventory.view"), asyncHandler(inventoryController.importHistory));
+
 router.get("/orders", requirePermission("orders.view"), asyncHandler(orderController.listOrders));
+router.get("/orders/:id", requirePermission("orders.view"), validate(idParamsSchema), asyncHandler(orderController.getOrder));
 router.patch("/orders/:id/status", requirePermission("orders.update"), validate(updateOrderStatusSchema), asyncHandler(orderController.updateOrderStatus));
+router.put("/orders/:id/status", requirePermission("orders.update"), validate(updateOrderStatusSchema), asyncHandler(orderController.updateOrderStatus));
+router.put("/orders/:id/payment", requirePermission("orders.update"), validate(updatePaymentSchema), asyncHandler(orderController.updatePayment));
+router.put("/orders/:id/courier", requirePermission("orders.update"), validate(updateCourierSchema), asyncHandler(orderController.updateCourier));
+router.put("/orders/:id/note", requirePermission("orders.update"), validate(noteSchema), asyncHandler(orderController.updateNote));
+
+router.get("/couriers", requirePermission("orders.view"), asyncHandler(orderController.listCouriers));
+router.post("/couriers", requirePermission("orders.update"), asyncHandler(orderController.createCourier));
+router.put("/couriers/:id", requirePermission("orders.update"), validate(idParamsSchema), asyncHandler(orderController.updateCourierCompany));
+router.delete("/couriers/:id", requirePermission("orders.update"), validate(idParamsSchema), asyncHandler(orderController.deleteCourier));
 
 router.get("/roles", requirePermission("roles.view"), asyncHandler(adminController.listRoles));
 router.post("/roles", requirePermission("roles.create"), validate(roleSchema), asyncHandler(adminController.createRole));
+router.get("/roles/:id", requirePermission("roles.view"), validate(idParamsSchema), asyncHandler(adminController.getRole));
 router.put("/roles/:id", requirePermission("roles.update"), validate(idParamsSchema), validate(roleSchema), asyncHandler(adminController.updateRole));
+router.delete("/roles/:id", requirePermission("roles.delete"), validate(idParamsSchema), asyncHandler(adminController.deleteRole));
 
 router.get("/staff", requirePermission("staff.view"), asyncHandler(adminController.listStaff));
 router.post("/staff", requirePermission("staff.create"), validate(createStaffSchema), asyncHandler(adminController.createStaff));
+router.get("/staff/:id", requirePermission("staff.view"), validate(idParamsSchema), asyncHandler(adminController.getStaff));
+router.put("/staff/:id", requirePermission("staff.update"), validate(idParamsSchema), validate(updateUserSchema), asyncHandler(adminController.updateStaff));
+router.delete("/staff/:id", requirePermission("staff.delete"), validate(idParamsSchema), asyncHandler(adminController.deleteStaff));
+
+router.get("/users", requirePermission("staff.view"), asyncHandler(adminController.listStaff));
+router.post("/users", requirePermission("staff.create"), validate(createStaffSchema), asyncHandler(adminController.createStaff));
+router.post("/users/:id/resend-invite", requirePermission("staff.create"), validate(idParamsSchema), asyncHandler(adminController.resendInvite));
+router.get("/users/:id", requirePermission("staff.view"), validate(idParamsSchema), asyncHandler(adminController.getStaff));
+router.put("/users/:id", requirePermission("staff.update"), validate(idParamsSchema), validate(updateUserSchema), asyncHandler(adminController.updateStaff));
+router.delete("/users/:id", requirePermission("staff.delete"), validate(idParamsSchema), asyncHandler(adminController.deleteStaff));
 
 router.get("/settings", requirePermission("settings.view"), asyncHandler(adminController.getSettings));
 router.put("/settings", requirePermission("settings.update"), asyncHandler(adminController.updateSettings));
+router.get("/settings/store", requirePermission("settings.view"), asyncHandler(settingsController.getStore));
+router.put("/settings/store", requirePermission("settings.update"), asyncHandler(settingsController.updateStore));
+router.get("/settings/payment-methods", requirePermission("settings.view"), asyncHandler(settingsController.paymentMethods));
+router.put("/settings/payment-methods", requirePermission("settings.update"), asyncHandler(settingsController.updatePaymentMethods));
+router.get("/settings/delivery-areas", requirePermission("settings.view"), asyncHandler(settingsController.deliveryAreas));
+router.post("/settings/delivery-areas", requirePermission("settings.update"), asyncHandler(settingsController.createDeliveryArea));
+router.put("/settings/delivery-areas/:id", requirePermission("settings.update"), validate(idParamsSchema), asyncHandler(settingsController.updateDeliveryArea));
+router.delete("/settings/delivery-areas/:id", requirePermission("settings.update"), validate(idParamsSchema), asyncHandler(settingsController.deleteDeliveryArea));
+router.get("/reports/:type", requirePermission("reports.view"), asyncHandler(settingsController.report));
 router.get("/audit-logs", requirePermission("auditLogs.view"), asyncHandler(adminController.auditLogs));
 
 module.exports = router;

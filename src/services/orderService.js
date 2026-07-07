@@ -1,6 +1,7 @@
 const Order = require("../models/Order");
 const Product = require("../models/Product");
 const Setting = require("../models/Setting");
+const CourierCompany = require("../models/CourierCompany");
 const { AppError } = require("../utils/AppError");
 
 async function nextOrderNumber() {
@@ -41,6 +42,8 @@ async function createOrder(payload) {
     grandTotal,
     paymentMethod: payload.paymentMethod,
     notes: payload.notes,
+    dueAmount: grandTotal,
+    statusHistory: [{ status: "pending", note: "Order placed" }],
   });
 
   for (const item of items) {
@@ -63,16 +66,92 @@ async function listOrders(query = {}) {
     ];
   }
   const [items, total] = await Promise.all([
-    Order.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    Order.find(filter).populate("courier", "name phone defaultCharge").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
     Order.countDocuments(filter),
   ]);
   return { items, pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 } };
 }
 
 async function updateOrderStatus(id, status, actorId) {
-  const order = await Order.findByIdAndUpdate(id, { status, updatedBy: actorId }, { new: true });
+  const order = await Order.findById(id);
+  if (!order) throw new AppError("Order not found", 404);
+  order.status = status;
+  order.updatedBy = actorId;
+  order.statusHistory.push({ status, updatedBy: actorId });
+  order.staffActivity.push({ action: "status_update", note: status, updatedBy: actorId });
+  await order.save();
+  return order;
+}
+
+async function getOrder(id) {
+  const order = await Order.findById(id).populate("courier", "name phone defaultCharge").populate("staffActivity.updatedBy", "name email");
   if (!order) throw new AppError("Order not found", 404);
   return order;
 }
 
-module.exports = { createOrder, listOrders, updateOrderStatus };
+async function updatePayment(id, payload, actorId) {
+  const order = await Order.findById(id);
+  if (!order) throw new AppError("Order not found", 404);
+  Object.assign(order, {
+    paymentStatus: payload.paymentStatus,
+    paidAmount: payload.paidAmount,
+    dueAmount: payload.dueAmount,
+    refundAmount: payload.refundAmount,
+    updatedBy: actorId,
+  });
+  order.paymentHistory.push({ ...payload, updatedBy: actorId });
+  order.staffActivity.push({ action: "payment_update", note: payload.paymentStatus, updatedBy: actorId });
+  await order.save();
+  return order;
+}
+
+async function updateCourier(id, payload, actorId) {
+  const order = await Order.findById(id);
+  if (!order) throw new AppError("Order not found", 404);
+  order.courier = payload.courier || null;
+  order.courierCharge = payload.courierCharge;
+  order.trackingNumber = payload.trackingNumber;
+  order.updatedBy = actorId;
+  if (payload.courier && order.status === "packed") order.status = "courier_assigned";
+  order.staffActivity.push({ action: "courier_update", note: payload.trackingNumber, updatedBy: actorId });
+  await order.save();
+  return order.populate("courier", "name phone defaultCharge");
+}
+
+async function updateNote(id, internalNote, actorId) {
+  const order = await Order.findById(id);
+  if (!order) throw new AppError("Order not found", 404);
+  order.internalNote = internalNote;
+  order.updatedBy = actorId;
+  order.staffActivity.push({ action: "note_update", note: internalNote, updatedBy: actorId });
+  await order.save();
+  return order;
+}
+
+async function trackOrder({ orderNumber, phone }) {
+  const order = await Order.findOne({ orderNumber, "customer.phone": phone }).populate("courier", "name phone");
+  if (!order) throw new AppError("Order ID and phone number do not match", 404);
+  return order;
+}
+
+async function listCouriers() {
+  return CourierCompany.find().sort({ name: 1 });
+}
+
+async function createCourier(payload) {
+  return CourierCompany.create(payload);
+}
+
+async function updateCourierCompany(id, payload) {
+  const courier = await CourierCompany.findByIdAndUpdate(id, payload, { new: true, runValidators: true });
+  if (!courier) throw new AppError("Courier not found", 404);
+  return courier;
+}
+
+async function deleteCourier(id) {
+  const courier = await CourierCompany.findByIdAndDelete(id);
+  if (!courier) throw new AppError("Courier not found", 404);
+  return courier;
+}
+
+module.exports = { createOrder, listOrders, getOrder, updateOrderStatus, updatePayment, updateCourier, updateNote, trackOrder, listCouriers, createCourier, updateCourierCompany, deleteCourier };

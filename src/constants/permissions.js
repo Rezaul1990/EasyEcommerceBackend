@@ -17,7 +17,37 @@ const modules = [
   {
     module: "orders",
     group: "Orders",
-    actions: ["view", "update", "cancel", "export", "manage"],
+    actions: ["view", "create", "update", "edit", "delete", "cancel", "export", "manage"],
+  },
+  {
+    module: "coupons",
+    group: "Discounts",
+    actions: ["view", "create", "update", "edit", "delete", "manage"],
+  },
+  {
+    module: "inventory",
+    group: "Inventory",
+    actions: ["view", "create", "update", "edit", "delete", "export", "manage"],
+  },
+  {
+    module: "brands",
+    group: "Catalog",
+    actions: ["view", "create", "update", "edit", "delete", "manage"],
+  },
+  {
+    module: "banners",
+    group: "Marketing",
+    actions: ["view", "create", "update", "edit", "delete", "manage"],
+  },
+  {
+    module: "payments",
+    group: "Payments",
+    actions: ["view", "create", "update", "edit", "delete", "manage"],
+  },
+  {
+    module: "refunds",
+    group: "Payments",
+    actions: ["view", "create", "update", "edit", "delete", "manage"],
   },
   {
     module: "customers",
@@ -27,12 +57,12 @@ const modules = [
   {
     module: "staff",
     group: "Access Control",
-    actions: ["view", "create", "update", "delete", "manage"],
+    actions: ["view", "create", "update", "edit", "delete", "manage"],
   },
   {
     module: "roles",
     group: "Access Control",
-    actions: ["view", "create", "update", "delete", "manage"],
+    actions: ["view", "create", "update", "edit", "delete", "manage"],
   },
   {
     module: "settings",

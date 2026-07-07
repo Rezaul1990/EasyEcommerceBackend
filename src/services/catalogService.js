@@ -1,10 +1,44 @@
-const slugify = require("slugify");
 const Category = require("../models/Category");
 const Product = require("../models/Product");
+const Coupon = require("../models/Coupon");
 const { AppError } = require("../utils/AppError");
+const { makeSlug } = require("../utils/slug");
 
-function makeSlug(value) {
-  return slugify(value, { lower: true, strict: true, trim: true });
+function calculateDiscountedPrice(price, discountType = "none", discountValue = 0) {
+  if (discountType === "fixed") return Math.max(price - discountValue, 0);
+  if (discountType === "percentage") return Math.max(price - price * (discountValue / 100), 0);
+  return price;
+}
+
+function normalizeProductPayload(payload) {
+  const basePrice = payload.basePrice ?? payload.price;
+  const baseSku = payload.baseSku || payload.sku;
+  const stock = payload.stock ?? payload.stockQuantity ?? 0;
+  const galleryImages = payload.galleryImages?.length ? payload.galleryImages : payload.imageUrls || [];
+  const discountType = payload.discountType || "none";
+  const discountValue = payload.discountValue || 0;
+  const finalPrice = calculateDiscountedPrice(basePrice, discountType, discountValue);
+
+  return {
+    ...payload,
+    category: payload.category || payload.categoryId,
+    categoryId: payload.categoryId || payload.category,
+    baseSku,
+    basePrice,
+    price: basePrice,
+    sku: baseSku,
+    stock,
+    stockQuantity: stock,
+    galleryImages,
+    imageUrls: galleryImages,
+    discountType,
+    discountValue,
+    finalPrice,
+    variants: (payload.variants || []).map((variant) => ({
+      ...variant,
+      finalPrice: calculateDiscountedPrice(variant.price, variant.discountType || "none", variant.discountValue || 0),
+    })),
+  };
 }
 
 async function listCategories({ publicOnly = false } = {}) {
@@ -70,17 +104,79 @@ async function getProductBySlug(slug) {
 }
 
 async function createProduct(payload, actorId) {
-  return Product.create({ ...payload, slug: makeSlug(payload.name), createdBy: actorId, updatedBy: actorId });
+  return Product.create({ ...normalizeProductPayload(payload), slug: makeSlug(payload.name), createdBy: actorId, updatedBy: actorId });
 }
 
 async function updateProduct(id, payload, actorId) {
   const product = await Product.findByIdAndUpdate(
     id,
-    { ...payload, slug: makeSlug(payload.name), updatedBy: actorId },
+    { ...normalizeProductPayload(payload), slug: makeSlug(payload.name), updatedBy: actorId },
     { new: true, runValidators: true },
   );
   if (!product) throw new AppError("Product not found", 404);
   return product;
+}
+
+async function listCoupons() {
+  return Coupon.find().populate("products", "name slug baseSku sku").sort({ createdAt: -1 });
+}
+
+async function createCoupon(payload, actorId) {
+  return Coupon.create({ ...payload, code: payload.code.toUpperCase(), createdBy: actorId, updatedBy: actorId });
+}
+
+async function getCoupon(id) {
+  const coupon = await Coupon.findById(id).populate("products", "name slug baseSku sku");
+  if (!coupon) throw new AppError("Coupon not found", 404);
+  return coupon;
+}
+
+async function updateCoupon(id, payload, actorId) {
+  const coupon = await Coupon.findByIdAndUpdate(
+    id,
+    { ...payload, code: payload.code.toUpperCase(), updatedBy: actorId },
+    { new: true, runValidators: true },
+  ).populate("products", "name slug baseSku sku");
+  if (!coupon) throw new AppError("Coupon not found", 404);
+  return coupon;
+}
+
+async function deleteCoupon(id) {
+  const coupon = await Coupon.findByIdAndDelete(id);
+  if (!coupon) throw new AppError("Coupon not found", 404);
+  return coupon;
+}
+
+async function productCoupons(slug) {
+  const product = await Product.findOne({ slug, status: "active" });
+  if (!product) throw new AppError("Product not found", 404);
+  const now = new Date();
+  return Coupon.find({
+    status: "active",
+    expiryDate: { $gt: now },
+    $or: [{ products: { $size: 0 } }, { products: product._id }],
+  }).sort({ discountValue: -1 });
+}
+
+async function validateCoupon({ code, subtotal = 0, productIds = [] }) {
+  const coupon = await Coupon.findOne({ code: code.toUpperCase() });
+  if (!coupon) throw new AppError("Coupon code is invalid", 404);
+  if (coupon.status !== "active") throw new AppError("Coupon is inactive", 422);
+  if (coupon.expiryDate <= new Date()) throw new AppError("Coupon has expired", 422);
+  if (subtotal < coupon.minimumOrderAmount) throw new AppError(`Minimum order amount is ${coupon.minimumOrderAmount}`, 422);
+
+  if (coupon.products.length) {
+    const allowed = new Set(coupon.products.map((id) => id.toString()));
+    const hasEligibleProduct = productIds.some((id) => allowed.has(id));
+    if (!hasEligibleProduct) throw new AppError("Coupon is not valid for selected products", 422);
+  }
+
+  const discountAmount = coupon.discountType === "fixed" ? Math.min(coupon.discountValue, subtotal) : Math.min(subtotal * (coupon.discountValue / 100), subtotal);
+  return {
+    coupon,
+    discountAmount,
+    finalTotal: Math.max(subtotal - discountAmount, 0),
+  };
 }
 
 async function deleteProduct(id) {
@@ -99,4 +195,11 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  listCoupons,
+  createCoupon,
+  getCoupon,
+  updateCoupon,
+  deleteCoupon,
+  productCoupons,
+  validateCoupon,
 };
