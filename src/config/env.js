@@ -17,6 +17,7 @@ const env = {
     maxFileSizeMb: Number(process.env.STORAGE_MAX_FILE_SIZE_MB || 5),
     maxFiles: Number(process.env.STORAGE_MAX_FILES || 10),
     cloudinary: {
+      url: process.env.CLOUDINARY_URL || "",
       cloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
       apiKey: process.env.CLOUDINARY_API_KEY || "",
       apiSecret: process.env.CLOUDINARY_API_SECRET || "",

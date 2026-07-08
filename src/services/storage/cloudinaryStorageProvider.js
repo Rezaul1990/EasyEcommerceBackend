@@ -3,7 +3,22 @@ const { env } = require("../../config/env");
 const { AppError } = require("../../utils/AppError");
 
 function assertConfigured() {
-  const { cloudName, apiKey, apiSecret } = env.storage.cloudinary;
+  const { url, cloudName, apiKey, apiSecret } = env.storage.cloudinary;
+  if (url) {
+    try {
+      const parsedUrl = new URL(url);
+      cloudinary.config({
+        cloud_name: parsedUrl.hostname,
+        api_key: decodeURIComponent(parsedUrl.username),
+        api_secret: decodeURIComponent(parsedUrl.password),
+        secure: true,
+      });
+      return;
+    } catch {
+      throw new AppError("Cloudinary URL is invalid", 503);
+    }
+  }
+
   if (!cloudName || !apiKey || !apiSecret) {
     throw new AppError("Cloudinary storage is not configured", 503);
   }
