@@ -143,6 +143,11 @@ async function report(type, query = {}) {
   if (query.courier) orderFilter.courier = query.courier;
   if (query.categoryId) productFilter.categoryId = query.categoryId;
 
+  if (query.categoryId) {
+    const categoryProducts = await Product.find(productFilter).select("_id");
+    orderFilter["items.productId"] = { $in: categoryProducts.map((product) => product._id) };
+  }
+
   const [orders, products, coupons] = await Promise.all([
     Order.find(orderFilter).populate("courier", "name").sort({ createdAt: -1 }).limit(250),
     Product.find(productFilter).populate("categoryId", "name").sort({ createdAt: -1 }).limit(250),
