@@ -46,7 +46,7 @@ async function publicDeliveryAreas(req, res) {
 }
 
 async function report(req, res) {
-  return sendSuccess(res, { message: "Report loaded", data: await settingsService.report(req.params.type) });
+  return sendSuccess(res, { message: "Report loaded", data: await settingsService.report(req.params.type, req.query) });
 }
 
 module.exports = { getStore, updateStore, paymentMethods, updatePaymentMethods, deliveryAreas, createDeliveryArea, updateDeliveryArea, deleteDeliveryArea, publicStore, publicPaymentMethods, publicDeliveryAreas, report };
