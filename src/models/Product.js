@@ -23,6 +23,19 @@ const productVariantSchema = new mongoose.Schema(
   { _id: true },
 );
 
+const imageAssetSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    publicId: { type: String, default: "" },
+    provider: { type: String, default: "local" },
+    width: { type: Number, default: null },
+    height: { type: Number, default: null },
+    format: { type: String, default: "" },
+    bytes: { type: Number, default: null },
+  },
+  { _id: false },
+);
+
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -47,6 +60,7 @@ const productSchema = new mongoose.Schema(
     stockQuantity: { type: Number, required: true, min: 0, default: 0 },
     lowStockThreshold: { type: Number, min: 0, default: 5 },
     imageUrls: [{ type: String }],
+    imageAssets: [imageAssetSchema],
     tags: [{ type: String, trim: true, lowercase: true }],
     status: {
       type: String,

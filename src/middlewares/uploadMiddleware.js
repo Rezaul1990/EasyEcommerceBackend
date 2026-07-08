@@ -1,23 +1,8 @@
-const path = require("path");
-const fs = require("fs");
 const multer = require("multer");
 const { env } = require("../config/env");
 const { AppError } = require("../utils/AppError");
 
 const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-
-const storage = multer.diskStorage({
-  destination(req, file, cb) {
-    const uploadPath = path.resolve(process.cwd(), env.uploadDir);
-    fs.mkdirSync(uploadPath, { recursive: true });
-    cb(null, uploadPath);
-  },
-  filename(req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const base = path.basename(file.originalname, ext).replace(/[^a-z0-9-_]+/gi, "-").toLowerCase();
-    cb(null, `${Date.now()}-${base}${ext}`);
-  },
-});
 
 function imageFileFilter(req, file, cb) {
   if (!allowedMimeTypes.has(file.mimetype)) {
@@ -28,9 +13,9 @@ function imageFileFilter(req, file, cb) {
 }
 
 const uploadImages = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter: imageFileFilter,
-  limits: { fileSize: 5 * 1024 * 1024, files: 10 },
+  limits: { fileSize: env.storage.maxFileSizeMb * 1024 * 1024, files: env.storage.maxFiles },
 });
 
 const uploadImportFile = multer({

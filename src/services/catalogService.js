@@ -14,7 +14,9 @@ function normalizeProductPayload(payload) {
   const basePrice = payload.basePrice ?? payload.price;
   const baseSku = payload.baseSku || payload.sku;
   const stock = payload.stock ?? payload.stockQuantity ?? 0;
-  const galleryImages = payload.galleryImages?.length ? payload.galleryImages : payload.imageUrls || [];
+  const imageAssets = payload.imageAssets || [];
+  const imageUrls = imageAssets.length ? imageAssets.map((asset) => asset.url) : payload.imageUrls || [];
+  const galleryImages = payload.galleryImages?.length ? payload.galleryImages : imageUrls;
   const discountType = payload.discountType || "none";
   const discountValue = payload.discountValue || 0;
   const finalPrice = calculateDiscountedPrice(basePrice, discountType, discountValue);
@@ -30,7 +32,8 @@ function normalizeProductPayload(payload) {
     stock,
     stockQuantity: stock,
     galleryImages,
-    imageUrls: galleryImages,
+    imageUrls,
+    imageAssets,
     discountType,
     discountValue,
     finalPrice,

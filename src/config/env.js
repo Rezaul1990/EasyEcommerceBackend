@@ -10,6 +10,17 @@ const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000",
   uploadDir: process.env.UPLOAD_DIR || "uploads",
+  storage: {
+    driver: process.env.STORAGE_DRIVER || "local",
+    folder: process.env.STORAGE_FOLDER || "easy-ecommerce/products",
+    maxFileSizeMb: Number(process.env.STORAGE_MAX_FILE_SIZE_MB || 5),
+    maxFiles: Number(process.env.STORAGE_MAX_FILES || 10),
+    cloudinary: {
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
+      apiKey: process.env.CLOUDINARY_API_KEY || "",
+      apiSecret: process.env.CLOUDINARY_API_SECRET || "",
+    },
+  },
 };
 
 module.exports = { env };

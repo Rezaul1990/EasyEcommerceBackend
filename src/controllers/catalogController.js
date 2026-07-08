@@ -1,5 +1,6 @@
 const catalogService = require("../services/catalogService");
 const { writeAudit } = require("../services/auditService");
+const storageService = require("../services/storage/storageService");
 const { sendSuccess } = require("../utils/apiResponse");
 
 async function publicCategories(req, res) {
@@ -103,13 +104,15 @@ async function validateCoupon(req, res) {
 
 async function uploadImages(req, res) {
   const files = req.files || [];
-  const data = files.map((file) => ({
-    fileName: file.filename,
-    url: `/uploads/${file.filename}`,
-    size: file.size,
-    mimeType: file.mimetype,
-  }));
+  const data = await storageService.uploadImages(files);
+  await writeAudit({ req, action: "create", module: "products", targetType: "ProductImage", newValue: data });
   return sendSuccess(res, { statusCode: 201, message: "Images uploaded", data });
+}
+
+async function deleteUploadedImage(req, res) {
+  const data = await storageService.deleteImage(req.body);
+  await writeAudit({ req, action: "delete", module: "products", targetType: "ProductImage", targetId: req.body.publicId });
+  return sendSuccess(res, { message: "Image deleted", data });
 }
 
 module.exports = {
@@ -132,4 +135,5 @@ module.exports = {
   productCoupons,
   validateCoupon,
   uploadImages,
+  deleteUploadedImage,
 };

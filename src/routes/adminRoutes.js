@@ -43,6 +43,7 @@ router.put("/coupons/:id", requirePermission("coupons.update"), validate(idParam
 router.delete("/coupons/:id", requirePermission("coupons.delete"), validate(idParamsSchema), asyncHandler(catalogController.deleteCoupon));
 
 router.post("/uploads/images", requirePermission("products.create"), uploadImages.array("images", 10), asyncHandler(catalogController.uploadImages));
+router.delete("/uploads/images", requirePermission("products.create"), asyncHandler(catalogController.deleteUploadedImage));
 
 router.get("/inventory", requirePermission("inventory.view"), asyncHandler(inventoryController.listInventory));
 router.get("/inventory/low-stock", requirePermission("inventory.view"), asyncHandler(inventoryController.lowStock));

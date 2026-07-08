@@ -33,6 +33,16 @@ const variantSchema = z.object({
   status: z.enum(["active", "inactive"]).default("active"),
 });
 
+const imageAssetSchema = z.object({
+  url: z.string().url(),
+  publicId: z.string().optional().default(""),
+  provider: z.string().optional().default("local"),
+  width: z.number().nullable().optional(),
+  height: z.number().nullable().optional(),
+  format: z.string().optional().default(""),
+  bytes: z.number().nullable().optional(),
+});
+
 const productSchema = z.object({
   body: z.object({
     name: z.string().min(2),
@@ -51,6 +61,7 @@ const productSchema = z.object({
     lowStockThreshold: z.number().int().nonnegative().default(5),
     imageUrls: z.array(z.string().url()).default([]),
     galleryImages: z.array(z.string()).default([]),
+    imageAssets: z.array(imageAssetSchema).default([]),
     discountType: z.enum(["none", "fixed", "percentage"]).default("none"),
     discountValue: z.number().nonnegative().default(0),
     variants: z.array(variantSchema).default([]),
