@@ -13,7 +13,7 @@ async function listOrders(req, res) {
 }
 
 async function updateOrderStatus(req, res) {
-  const data = await orderService.updateOrderStatus(req.params.id, req.body.status, req.user._id);
+  const data = await orderService.updateOrderStatus(req.params.id, req.body.status, req.user._id, req.body.note || "");
   await writeAudit({ req, action: "status_update", module: "orders", targetType: "Order", targetId: data._id, newValue: { status: data.status } });
   return sendSuccess(res, { message: "Order status updated", data });
 }

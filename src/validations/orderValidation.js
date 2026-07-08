@@ -18,7 +18,7 @@ const createOrderSchema = z.object({
         }),
       )
       .min(1),
-    paymentMethod: z.enum(["cod", "manual"]).default("cod"),
+    paymentMethod: z.enum(["cod", "manual", "bkash", "nagad", "card"]).default("cod"),
     notes: z.string().optional().default(""),
   }),
 });

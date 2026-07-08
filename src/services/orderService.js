@@ -2,11 +2,130 @@ const Order = require("../models/Order");
 const Product = require("../models/Product");
 const Setting = require("../models/Setting");
 const CourierCompany = require("../models/CourierCompany");
+const InventoryMovement = require("../models/InventoryMovement");
 const { AppError } = require("../utils/AppError");
 
 async function nextOrderNumber() {
   const suffix = Math.floor(100000 + Math.random() * 900000);
   return `EE-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${suffix}`;
+}
+
+function productAvailableStock(product) {
+  return (product.stockQuantity ?? product.stock ?? 0) - (product.reservedStock || 0);
+}
+
+async function applySimpleProductStockChange({ productId, quantity, type, orderId, actorId = null, note = "" }) {
+  const product = await Product.findById(productId);
+  if (!product) throw new AppError("Product not found while updating stock", 404);
+
+  const previousStock = product.stockQuantity ?? product.stock ?? 0;
+  const previousReservedStock = product.reservedStock || 0;
+
+  if (type === "reserve") {
+    if (previousStock - previousReservedStock < quantity) {
+      throw new AppError(`${product.name} does not have enough available stock`, 422);
+    }
+    product.reservedStock = previousReservedStock + quantity;
+  }
+
+  if (type === "release_reserve") {
+    product.reservedStock = Math.max(previousReservedStock - quantity, 0);
+  }
+
+  if (type === "confirm_reduce") {
+    product.stockQuantity = Math.max(previousStock - quantity, 0);
+    product.stock = Math.max((product.stock ?? previousStock) - quantity, 0);
+    product.reservedStock = Math.max(previousReservedStock - quantity, 0);
+  }
+
+  if (type === "cancel_return") {
+    product.stockQuantity = previousStock + quantity;
+    product.stock = (product.stock ?? previousStock) + quantity;
+  }
+
+  await product.save();
+
+  await InventoryMovement.create({
+    product: product._id,
+    type,
+    quantity,
+    previousStock,
+    newStock: product.stockQuantity ?? product.stock ?? 0,
+    previousReservedStock,
+    newReservedStock: product.reservedStock || 0,
+    order: orderId,
+    note,
+    createdBy: actorId,
+  });
+
+  return product;
+}
+
+async function reserveOrderStock(order) {
+  for (const item of order.items) {
+    await applySimpleProductStockChange({
+      productId: item.productId,
+      quantity: item.quantity,
+      type: "reserve",
+      orderId: order._id,
+      note: "Order placed",
+    });
+  }
+  order.stockState = "reserved";
+  order.stockReservedAt = new Date();
+  await order.save();
+  return order;
+}
+
+async function confirmReservedStock(order, actorId) {
+  if (order.stockState !== "reserved") return order;
+  for (const item of order.items) {
+    await applySimpleProductStockChange({
+      productId: item.productId,
+      quantity: item.quantity,
+      type: "confirm_reduce",
+      orderId: order._id,
+      actorId,
+      note: "Order confirmed",
+    });
+  }
+  order.stockState = "reduced";
+  order.stockReducedAt = new Date();
+  return order;
+}
+
+async function releaseReservedStock(order, actorId) {
+  if (order.stockState !== "reserved") return order;
+  for (const item of order.items) {
+    await applySimpleProductStockChange({
+      productId: item.productId,
+      quantity: item.quantity,
+      type: "release_reserve",
+      orderId: order._id,
+      actorId,
+      note: "Pending order cancelled",
+    });
+  }
+  order.stockState = "released";
+  order.stockReleasedAt = new Date();
+  return order;
+}
+
+async function restockReducedOrder(order, actorId) {
+  if (order.stockState !== "reduced") return order;
+  for (const item of order.items) {
+    await applySimpleProductStockChange({
+      productId: item.productId,
+      quantity: item.quantity,
+      type: "cancel_return",
+      orderId: order._id,
+      actorId,
+      note: "Order returned",
+    });
+  }
+  order.stockState = "restocked";
+  order.stockRestockedAt = new Date();
+  return order;
 }
 
 async function createOrder(payload) {
@@ -17,7 +136,7 @@ async function createOrder(payload) {
   const items = payload.items.map((item) => {
     const product = productMap.get(item.productId);
     if (!product) throw new AppError("One or more products are unavailable", 422);
-    if (product.stockQuantity < item.quantity) throw new AppError(`${product.name} does not have enough stock`, 422);
+    if (productAvailableStock(product) < item.quantity) throw new AppError(`${product.name} does not have enough stock`, 422);
     return {
       productId: product._id,
       name: product.name,
@@ -46,11 +165,7 @@ async function createOrder(payload) {
     statusHistory: [{ status: "pending", note: "Order placed" }],
   });
 
-  for (const item of items) {
-    await Product.findByIdAndUpdate(item.productId, { $inc: { stockQuantity: -item.quantity } });
-  }
-
-  return order;
+  return reserveOrderStock(order);
 }
 
 async function listOrders(query = {}) {
@@ -61,6 +176,7 @@ async function listOrders(query = {}) {
   if (query.search) {
     filter.$or = [
       { orderNumber: new RegExp(query.search, "i") },
+      { "customer.phone": new RegExp(query.search, "i") },
       { "customer.email": new RegExp(query.search, "i") },
       { "customer.name": new RegExp(query.search, "i") },
     ];
@@ -72,13 +188,26 @@ async function listOrders(query = {}) {
   return { items, pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 } };
 }
 
-async function updateOrderStatus(id, status, actorId) {
+async function updateOrderStatus(id, status, actorId, note = "") {
   const order = await Order.findById(id);
   if (!order) throw new AppError("Order not found", 404);
+
+  if (status === "confirmed") {
+    await confirmReservedStock(order, actorId);
+  }
+
+  if (status === "cancelled") {
+    await releaseReservedStock(order, actorId);
+  }
+
+  if (status === "returned") {
+    await restockReducedOrder(order, actorId);
+  }
+
   order.status = status;
   order.updatedBy = actorId;
-  order.statusHistory.push({ status, updatedBy: actorId });
-  order.staffActivity.push({ action: "status_update", note: status, updatedBy: actorId });
+  order.statusHistory.push({ status, note, updatedBy: actorId });
+  order.staffActivity.push({ action: "status_update", note: note || status, updatedBy: actorId });
   await order.save();
   return order;
 }
