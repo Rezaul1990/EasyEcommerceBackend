@@ -66,7 +66,7 @@ const productSchema = z.object({
     price: z.number().nonnegative(),
     basePrice: z.number().nonnegative().optional(),
     compareAtPrice: z.number().nonnegative().nullable().optional(),
-    sku: z.string().min(2),
+    sku: z.string().min(2).optional().default(""),
     baseSku: z.string().min(2).optional(),
     stockQuantity: z.number().int().nonnegative().default(0),
     stock: z.number().int().nonnegative().optional(),

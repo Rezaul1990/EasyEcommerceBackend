@@ -10,6 +10,26 @@ function calculateDiscountedPrice(price, discountType = "none", discountValue = 
   return price;
 }
 
+function makeSkuBase(value) {
+  const base = makeSlug(value).replace(/-/g, "-").toUpperCase();
+  return base || "PRODUCT";
+}
+
+async function makeUniqueSku(value, excludeProductId = null) {
+  const base = makeSkuBase(value);
+  let candidate = base;
+  let suffix = 2;
+  const filter = excludeProductId ? { sku: candidate, _id: { $ne: excludeProductId } } : { sku: candidate };
+
+  while (await Product.exists(filter)) {
+    candidate = `${base}-${suffix}`;
+    filter.sku = candidate;
+    suffix += 1;
+  }
+
+  return candidate;
+}
+
 function normalizeProductPayload(payload) {
   const basePrice = payload.basePrice ?? payload.price;
   const baseSku = payload.baseSku || payload.sku;
@@ -107,13 +127,15 @@ async function getProductBySlug(slug) {
 }
 
 async function createProduct(payload, actorId) {
-  return Product.create({ ...normalizeProductPayload(payload), slug: makeSlug(payload.name), createdBy: actorId, updatedBy: actorId });
+  const sku = await makeUniqueSku(payload.sku || payload.name);
+  return Product.create({ ...normalizeProductPayload({ ...payload, sku, baseSku: payload.baseSku || sku }), slug: makeSlug(payload.name), createdBy: actorId, updatedBy: actorId });
 }
 
 async function updateProduct(id, payload, actorId) {
+  const sku = await makeUniqueSku(payload.sku || payload.name, id);
   const product = await Product.findByIdAndUpdate(
     id,
-    { ...normalizeProductPayload(payload), slug: makeSlug(payload.name), updatedBy: actorId },
+    { ...normalizeProductPayload({ ...payload, sku, baseSku: payload.baseSku || sku }), slug: makeSlug(payload.name), updatedBy: actorId },
     { new: true, runValidators: true },
   );
   if (!product) throw new AppError("Product not found", 404);
