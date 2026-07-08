@@ -18,4 +18,5 @@ For product image uploads, keep the storage provider configurable through `.env`
 - `STORAGE_DRIVER=cloudinary` for Cloudinary uploads, or `local` for local development.
 - `STORAGE_FOLDER=easy-ecommerce/products` controls the provider folder/path.
 - `STORAGE_MAX_FILE_SIZE_MB=5` and `STORAGE_MAX_FILES=10` keep uploads safe for the free plan.
+- `API_PUBLIC_URL` should point to the backend origin, for example `http://localhost:5000`, so local upload URLs can render in the frontend.
 - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` are required only when `STORAGE_DRIVER=cloudinary`.

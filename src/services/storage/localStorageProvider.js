@@ -13,10 +13,11 @@ async function uploadImage(file) {
   const uploadPath = path.resolve(process.cwd(), env.uploadDir);
   fs.mkdirSync(uploadPath, { recursive: true });
   await fs.promises.writeFile(path.join(uploadPath, fileName), file.buffer);
+  const url = `${env.publicUrl.replace(/\/$/, "")}/uploads/${fileName}`;
 
   return {
-    url: `/uploads/${fileName}`,
-    secureUrl: `/uploads/${fileName}`,
+    url,
+    secureUrl: url,
     publicId: fileName,
     provider: "local",
     fileName,
