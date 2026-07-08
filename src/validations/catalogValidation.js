@@ -1,5 +1,18 @@
 const { z } = require("zod");
 
+const imageUrlSchema = z.string().refine(
+  (value) => {
+    if (value.startsWith("/uploads/")) return true;
+    try {
+      const url = new URL(value);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+      return false;
+    }
+  },
+  { message: "Image URL must be an http(s) URL or a local upload path" },
+);
+
 const listQuery = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(12),
@@ -34,7 +47,7 @@ const variantSchema = z.object({
 });
 
 const imageAssetSchema = z.object({
-  url: z.string().url(),
+  url: imageUrlSchema,
   publicId: z.string().optional().default(""),
   provider: z.string().optional().default("local"),
   width: z.number().nullable().optional(),
@@ -59,8 +72,8 @@ const productSchema = z.object({
     stock: z.number().int().nonnegative().optional(),
     reservedStock: z.number().int().nonnegative().default(0),
     lowStockThreshold: z.number().int().nonnegative().default(5),
-    imageUrls: z.array(z.string().url()).default([]),
-    galleryImages: z.array(z.string()).default([]),
+    imageUrls: z.array(imageUrlSchema).default([]),
+    galleryImages: z.array(imageUrlSchema).default([]),
     imageAssets: z.array(imageAssetSchema).default([]),
     discountType: z.enum(["none", "fixed", "percentage"]).default("none"),
     discountValue: z.number().nonnegative().default(0),
