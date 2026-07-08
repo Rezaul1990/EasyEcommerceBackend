@@ -39,23 +39,32 @@ function optimizedDeliveryUrl(url) {
 async function uploadImage(file) {
   assertConfigured();
 
-  const result = await new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: env.storage.folder,
-        resource_type: "image",
-        overwrite: false,
-        use_filename: true,
-        unique_filename: true,
-      },
-      (error, uploadResult) => {
-        if (error) return reject(error);
-        return resolve(uploadResult);
-      },
-    );
+  let result;
+  try {
+    result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: env.storage.folder,
+          resource_type: "image",
+          overwrite: false,
+          use_filename: true,
+          unique_filename: true,
+        },
+        (error, uploadResult) => {
+          if (error) return reject(error);
+          return resolve(uploadResult);
+        },
+      );
 
-    stream.end(file.buffer);
-  });
+      stream.end(file.buffer);
+    });
+  } catch (error) {
+    const message = String(error?.message || "");
+    if (message.toLowerCase().includes("invalid signature")) {
+      throw new AppError("Cloudinary credentials are invalid. Copy the full CLOUDINARY_URL from Cloudinary and restart the backend.", 503);
+    }
+    throw new AppError("Cloudinary image upload failed", 502, { providerMessage: message || "Unknown Cloudinary error" });
+  }
 
   const url = optimizedDeliveryUrl(result.secure_url);
 
@@ -78,8 +87,16 @@ async function uploadImage(file) {
 async function deleteImage(publicId) {
   assertConfigured();
   if (!publicId) return { deleted: false };
-  const result = await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
-  return { deleted: result.result === "ok", result: result.result };
+  try {
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
+    return { deleted: result.result === "ok", result: result.result };
+  } catch (error) {
+    const message = String(error?.message || "");
+    if (message.toLowerCase().includes("invalid signature")) {
+      throw new AppError("Cloudinary credentials are invalid. Copy the full CLOUDINARY_URL from Cloudinary and restart the backend.", 503);
+    }
+    throw new AppError("Cloudinary image delete failed", 502, { providerMessage: message || "Unknown Cloudinary error" });
+  }
 }
 
 module.exports = { uploadImage, deleteImage };
