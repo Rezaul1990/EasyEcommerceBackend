@@ -37,6 +37,7 @@ async function updateCourier(req, res) {
 
 async function updateNote(req, res) {
   const data = await orderService.updateNote(req.params.id, req.body.internalNote, req.user._id);
+  await writeAudit({ req, action: "note_added", module: "orders", targetType: "Order", targetId: data._id, newValue: { note: req.body.internalNote } });
   return sendSuccess(res, { message: "Order note updated", data });
 }
 

@@ -26,7 +26,7 @@ const createOrderSchema = z.object({
 const updateOrderStatusSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({
-    status: z.enum(["pending", "confirmed", "packed", "courier_assigned", "shipped", "delivered", "cancelled", "returned", "refunded"]),
+    status: z.enum(["pending", "confirmed", "processing", "packed", "courier_assigned", "shipped", "delivered", "cancelled", "returned", "refunded"]),
     note: z.string().optional().default(""),
   }),
 });
@@ -34,11 +34,17 @@ const updateOrderStatusSchema = z.object({
 const updatePaymentSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({
-    paymentStatus: z.enum(["unpaid", "paid", "partial_paid", "due", "refunded", "cancelled_payment"]),
-    paidAmount: z.number().nonnegative().default(0),
-    dueAmount: z.number().nonnegative().default(0),
-    refundAmount: z.number().nonnegative().default(0),
+    type: z.enum(["payment", "refund"]).optional().default("payment"),
+    method: z.enum(["cash", "cod", "cash_on_delivery", "manual", "manual_payment", "bkash", "nagad", "card", "bank_transfer"]).optional(),
+    paymentMethod: z.enum(["cash", "cod", "cash_on_delivery", "manual", "manual_payment", "bkash", "nagad", "card", "bank_transfer"]).optional(),
+    amount: z.number().nonnegative().optional(),
+    paidAmount: z.number().nonnegative().optional(),
+    reference: z.string().max(120).optional().default(""),
+    transactionId: z.string().max(120).optional().default(""),
+    senderPhone: z.string().max(40).optional().default(""),
+    reason: z.string().max(300).optional().default(""),
     note: z.string().optional().default(""),
+    processedAt: z.string().optional(),
   }),
 });
 
@@ -48,6 +54,9 @@ const updateCourierSchema = z.object({
     courier: z.string().optional().default(""),
     courierCharge: z.number().nonnegative().default(0),
     trackingNumber: z.string().optional().default(""),
+    dispatchDate: z.string().optional().default(""),
+    estimatedDeliveryDate: z.string().optional().default(""),
+    fulfilmentNote: z.string().optional().default(""),
   }),
 });
 

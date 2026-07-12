@@ -10,6 +10,8 @@ const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000",
   publicUrl: process.env.API_PUBLIC_URL || `http://localhost:${Number(process.env.PORT || 5000)}`,
+  storeTimezone: process.env.STORE_TIMEZONE || "Asia/Dhaka",
+  weekStartsOn: Number(process.env.STORE_WEEK_STARTS_ON || 1),
   uploadDir: process.env.UPLOAD_DIR || "uploads",
   storage: {
     driver: process.env.STORAGE_DRIVER || "local",
