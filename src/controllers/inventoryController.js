@@ -1,24 +1,31 @@
 const inventoryService = require("../services/inventoryService");
+const { writeAudit } = require("../services/auditService");
 const { sendSuccess } = require("../utils/apiResponse");
 
 async function listInventory(req, res) {
-  const data = await inventoryService.listInventory(req.query);
-  return sendSuccess(res, { message: "Inventory loaded", data });
+  const result = await inventoryService.listInventory(req.query);
+  return sendSuccess(res, { message: "Inventory loaded", data: result.items, meta: result.meta });
 }
 
 async function lowStock(req, res) {
-  const data = await inventoryService.listInventory({ ...req.query, stockStatus: "low_stock" });
-  return sendSuccess(res, { message: "Low stock loaded", data });
+  const result = await inventoryService.listInventory({ ...req.query, stockStatus: "low_stock" });
+  return sendSuccess(res, { message: "Low stock loaded", data: result.items, meta: result.meta });
 }
 
 async function outOfStock(req, res) {
-  const data = await inventoryService.listInventory({ ...req.query, stockStatus: "out_of_stock" });
-  return sendSuccess(res, { message: "Out of stock loaded", data });
+  const result = await inventoryService.listInventory({ ...req.query, stockStatus: "out_of_stock" });
+  return sendSuccess(res, { message: "Out of stock loaded", data: result.items, meta: result.meta });
 }
 
 async function movements(req, res) {
-  const data = await inventoryService.listMovements(req.query);
-  return sendSuccess(res, { message: "Inventory movements loaded", data });
+  const result = await inventoryService.listMovements(req.query);
+  return sendSuccess(res, { message: "Inventory movements loaded", data: result.items, meta: result.meta });
+}
+
+async function adjustStock(req, res) {
+  const data = await inventoryService.adjustStock({ ...req.body, actorId: req.user._id });
+  await writeAudit({ req, action: "stock_adjusted", module: "inventory", targetType: "Product", targetId: data.productId, newValue: req.body });
+  return sendSuccess(res, { message: "Stock adjusted", data });
 }
 
 async function demoDownload(req, res) {
@@ -42,4 +49,4 @@ async function importHistory(req, res) {
   return sendSuccess(res, { message: "Import history loaded", data });
 }
 
-module.exports = { listInventory, lowStock, outOfStock, movements, demoDownload, restockImport, importHistory };
+module.exports = { listInventory, lowStock, outOfStock, movements, adjustStock, demoDownload, restockImport, importHistory };

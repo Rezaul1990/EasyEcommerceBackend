@@ -8,6 +8,7 @@ const { requireAuth, requirePermission } = require("../middlewares/authMiddlewar
 const { uploadImages, uploadImportFile } = require("../middlewares/uploadMiddleware");
 const { validate } = require("../middlewares/validate");
 const { categorySchema, productSchema, listProductsSchema, idParamsSchema, couponSchema } = require("../validations/catalogValidation");
+const { inventoryListSchema, movementListSchema, stockAdjustmentSchema } = require("../validations/inventoryValidation");
 const { updateOrderStatusSchema, updatePaymentSchema, updateCourierSchema, noteSchema } = require("../validations/orderValidation");
 const { roleSchema } = require("../validations/roleValidation");
 const { createStaffSchema, updateUserSchema, inviteTokenParamsSchema, acceptInviteSchema } = require("../validations/authValidation");
@@ -45,10 +46,11 @@ router.delete("/coupons/:id", requirePermission("coupons.delete"), validate(idPa
 router.post("/uploads/images", requirePermission("products.create"), uploadImages.array("images", 10), asyncHandler(catalogController.uploadImages));
 router.delete("/uploads/images", requirePermission("products.create"), asyncHandler(catalogController.deleteUploadedImage));
 
-router.get("/inventory", requirePermission("inventory.view"), asyncHandler(inventoryController.listInventory));
-router.get("/inventory/low-stock", requirePermission("inventory.view"), asyncHandler(inventoryController.lowStock));
-router.get("/inventory/out-of-stock", requirePermission("inventory.view"), asyncHandler(inventoryController.outOfStock));
-router.get("/inventory/movements", requirePermission("inventory.view"), asyncHandler(inventoryController.movements));
+router.get("/inventory", requirePermission("inventory.view"), validate(inventoryListSchema), asyncHandler(inventoryController.listInventory));
+router.get("/inventory/low-stock", requirePermission("inventory.view"), validate(inventoryListSchema), asyncHandler(inventoryController.lowStock));
+router.get("/inventory/out-of-stock", requirePermission("inventory.view"), validate(inventoryListSchema), asyncHandler(inventoryController.outOfStock));
+router.get("/inventory/movements", requirePermission("inventory.view"), validate(movementListSchema), asyncHandler(inventoryController.movements));
+router.post("/inventory/adjust", requirePermission("inventory.update"), validate(stockAdjustmentSchema), asyncHandler(inventoryController.adjustStock));
 router.get("/inventory/:type/demo-download", requirePermission("inventory.view"), asyncHandler(inventoryController.demoDownload));
 router.post("/inventory/restock-import", requirePermission("inventory.update"), uploadImportFile.single("file"), asyncHandler(inventoryController.restockImport));
 router.get("/inventory/import-history", requirePermission("inventory.view"), asyncHandler(inventoryController.importHistory));
