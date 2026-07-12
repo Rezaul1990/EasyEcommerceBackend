@@ -236,6 +236,10 @@ function syncPaymentTotals(order) {
 
 async function createOrder(payload) {
   const productIds = payload.items.map((item) => item.productId);
+  const invalidProductIds = productIds.filter((productId) => !mongoose.Types.ObjectId.isValid(productId));
+  if (invalidProductIds.length) {
+    throw new AppError("Your cart has old product data. Please remove those items and add products again.", 422);
+  }
   const products = await Product.find({ _id: { $in: productIds }, status: "active" });
   const productMap = new Map(products.map((product) => [product._id.toString(), product]));
 
