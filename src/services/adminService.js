@@ -22,13 +22,22 @@ async function listRoles() {
   return Role.find().sort({ isSystemRole: -1, name: 1 });
 }
 
+function canNonOwnerAssignRole(role, actorPermissions, actorRoleId) {
+  if (role.slug === "owner") return false;
+  if (String(role._id) === String(actorRoleId)) return false;
+  const delegatedStaffPermissions = new Set(["staff.create", "staff.update", "staff.edit", "staff.delete", "staff.manage"]);
+  const canManageAccess = role.permissions.some((permission) => permission.startsWith("roles.") || delegatedStaffPermissions.has(permission));
+  if (canManageAccess) return false;
+  return role.permissions.every((permission) => actorPermissions.has(permission));
+}
+
 async function listAssignableRoles(actor) {
   const query = { slug: { $ne: "owner" }, status: "active" };
   const roles = await Role.find(query).sort({ isSystemRole: -1, name: 1 });
   if (actor.roleId?.slug === "owner") return roles;
 
   const actorPermissions = new Set(currentPermissions(actor));
-  return roles.filter((role) => role.permissions.every((permission) => actorPermissions.has(permission)));
+  return roles.filter((role) => canNonOwnerAssignRole(role, actorPermissions, actor.roleId?._id));
 }
 
 async function ensureRoleAssignable(roleId, actor) {
@@ -38,7 +47,7 @@ async function ensureRoleAssignable(roleId, actor) {
   if (actor.roleId?.slug === "owner") return role;
 
   const actorPermissions = new Set(currentPermissions(actor));
-  const canAssign = role.permissions.every((permission) => actorPermissions.has(permission));
+  const canAssign = canNonOwnerAssignRole(role, actorPermissions, actor.roleId?._id);
   if (!canAssign) throw new AppError("You cannot assign a role with permissions you do not have", 403);
   return role;
 }
