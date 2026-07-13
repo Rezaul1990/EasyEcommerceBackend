@@ -4,10 +4,11 @@ const createOrderSchema = z.object({
   body: z.object({
     customer: z.object({
       name: z.string().min(2),
-      email: z.string().email(),
+      email: z.union([z.string().email(), z.literal("")]).optional().default(""),
       phone: z.string().min(5),
       address: z.string().min(5),
       city: z.string().min(2),
+      area: z.string().min(2),
       postalCode: z.string().optional().default(""),
     }),
     items: z
