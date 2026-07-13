@@ -496,9 +496,17 @@ async function updateNote(id, internalNote, actorId) {
 }
 
 async function trackOrder({ orderNumber, phone }) {
-  const order = await Order.findOne({ orderNumber, "customer.phone": phone }).populate("courier", "name phone");
-  if (!order) throw new AppError("Order ID and phone number do not match", 404);
-  return order;
+  const filter = {};
+  const cleanOrderNumber = String(orderNumber || "").trim();
+  const cleanPhone = String(phone || "").trim();
+
+  if (cleanOrderNumber) filter.orderNumber = cleanOrderNumber;
+  if (cleanPhone) filter["customer.phone"] = cleanPhone;
+  if (!Object.keys(filter).length) throw new AppError("Enter an order ID or phone number", 422);
+
+  const orders = await Order.find(filter).populate("courier", "name phone").sort({ createdAt: -1 }).limit(20);
+  if (!orders.length) throw new AppError("No order found for the provided details", 404);
+  return orders;
 }
 
 async function listCouriers() {

@@ -66,10 +66,22 @@ const noteSchema = z.object({
 });
 
 const trackOrderSchema = z.object({
-  body: z.object({
-    orderNumber: z.string().min(3),
-    phone: z.string().min(5),
-  }),
+  body: z
+    .object({
+      orderNumber: z.string().trim().optional().default(""),
+      phone: z.string().trim().optional().default(""),
+    })
+    .superRefine((body, ctx) => {
+      if (!body.orderNumber && !body.phone) {
+        ctx.addIssue({ code: "custom", message: "Enter an order ID or phone number", path: ["orderNumber"] });
+      }
+      if (body.orderNumber && body.orderNumber.length < 3) {
+        ctx.addIssue({ code: "custom", message: "Order ID must be at least 3 characters", path: ["orderNumber"] });
+      }
+      if (body.phone && body.phone.length < 5) {
+        ctx.addIssue({ code: "custom", message: "Phone number must be at least 5 characters", path: ["phone"] });
+      }
+    }),
 });
 
 module.exports = { createOrderSchema, updateOrderStatusSchema, updatePaymentSchema, updateCourierSchema, noteSchema, trackOrderSchema };
