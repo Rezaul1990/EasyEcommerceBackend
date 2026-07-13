@@ -33,4 +33,11 @@ function requirePermission(permission) {
   };
 }
 
-module.exports = { requireAuth, requirePermission };
+function requireOwner(req, res, next) {
+  const role = req.role;
+  if (!role) return next(new AppError("Owner check requires authentication", 500));
+  if (role.slug === "owner") return next();
+  return next(new AppError("Only the store owner can perform this action", 403));
+}
+
+module.exports = { requireAuth, requireOwner, requirePermission };

@@ -50,7 +50,7 @@ async function updateRole(id, payload, actorId) {
 async function deleteRole(id) {
   const role = await Role.findById(id);
   if (!role) throw new AppError("Role not found", 404);
-  if (role.isSystemRole || role.slug === "owner") throw new AppError("System roles cannot be deleted", 403);
+  if (role.slug === "owner") throw new AppError("Owner role cannot be deleted", 403);
 
   const usersWithRole = await User.countDocuments({ roleId: id });
   if (usersWithRole > 0) throw new AppError("Role is assigned to users and cannot be deleted", 409);

@@ -4,7 +4,7 @@ const catalogController = require("../controllers/catalogController");
 const inventoryController = require("../controllers/inventoryController");
 const orderController = require("../controllers/orderController");
 const settingsController = require("../controllers/settingsController");
-const { requireAuth, requirePermission } = require("../middlewares/authMiddleware");
+const { requireAuth, requireOwner, requirePermission } = require("../middlewares/authMiddleware");
 const { uploadImages, uploadImportFile } = require("../middlewares/uploadMiddleware");
 const { validate } = require("../middlewares/validate");
 const { categorySchema, productSchema, listProductsSchema, idParamsSchema, couponSchema } = require("../validations/catalogValidation");
@@ -72,7 +72,7 @@ router.get("/roles", requirePermission("roles.view"), asyncHandler(adminControll
 router.post("/roles", requirePermission("roles.create"), validate(roleSchema), asyncHandler(adminController.createRole));
 router.get("/roles/:id", requirePermission("roles.view"), validate(idParamsSchema), asyncHandler(adminController.getRole));
 router.put("/roles/:id", requirePermission("roles.update"), validate(idParamsSchema), validate(roleSchema), asyncHandler(adminController.updateRole));
-router.delete("/roles/:id", requirePermission("roles.delete"), validate(idParamsSchema), asyncHandler(adminController.deleteRole));
+router.delete("/roles/:id", requireOwner, validate(idParamsSchema), asyncHandler(adminController.deleteRole));
 
 router.get("/staff", requirePermission("staff.view"), asyncHandler(adminController.listStaff));
 router.post("/staff", requirePermission("staff.create"), validate(createStaffSchema), asyncHandler(adminController.createStaff));
