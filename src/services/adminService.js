@@ -60,7 +60,8 @@ async function deleteRole(id) {
 }
 
 async function listStaff() {
-  return User.find().populate("roleId", "name slug").sort({ createdAt: -1 });
+  const users = await User.find().populate("roleId", "name slug permissions").sort({ createdAt: -1 });
+  return users.map((user) => sanitizeUser(user));
 }
 
 async function createStaff(payload, actorId) {
