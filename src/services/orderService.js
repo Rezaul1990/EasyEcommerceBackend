@@ -1,7 +1,8 @@
 const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
-const Setting = require("../models/Setting");
+const StoreSetting = require("../models/StoreSetting");
+const Coupon = require("../models/Coupon");
 const CourierCompany = require("../models/CourierCompany");
 const InventoryMovement = require("../models/InventoryMovement");
 const { env } = require("../config/env");
@@ -47,6 +48,31 @@ function variantAvailableStock(variant) {
 function variantLabel(variant) {
   const optionValues = Array.from(variant.options?.values?.() || []).filter(Boolean);
   return optionValues.length ? optionValues.join(" / ") : variant.variantName;
+}
+
+function normalizeLocation(value = "") {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function resolveShippingFee(customer = {}, settings = null) {
+  const charges = settings?.deliveryCharges || {};
+  return normalizeLocation(customer.city) === "dhaka" ? Number(charges.dhaka || 0) : Number(charges.outsideDhaka || 0);
+}
+
+async function resolveCouponDiscount({ couponCode = "", subtotal = 0, productIds = [] }) {
+  const code = String(couponCode || "").trim().toUpperCase();
+  if (!code) return { couponCode: "", discount: 0 };
+  const coupon = await Coupon.findOne({ code });
+  if (!coupon) throw new AppError("Coupon code is invalid", 404);
+  if (coupon.status !== "active") throw new AppError("Coupon is inactive", 422);
+  if (coupon.expiryDate <= new Date()) throw new AppError("Coupon has expired", 422);
+  if (subtotal < coupon.minimumOrderAmount) throw new AppError(`Minimum order amount is ${coupon.minimumOrderAmount}`, 422);
+  if (coupon.products.length) {
+    const allowed = new Set(coupon.products.map((id) => id.toString()));
+    if (!productIds.some((id) => allowed.has(id.toString()))) throw new AppError("Coupon is not valid for selected products", 422);
+  }
+  const discount = coupon.discountType === "fixed" ? Math.min(coupon.discountValue, subtotal) : Math.min(subtotal * (coupon.discountValue / 100), subtotal);
+  return { couponCode: code, discount };
 }
 
 function findProductVariant(product, item = {}) {
@@ -289,10 +315,14 @@ async function createOrder(payload) {
     };
   });
 
-  const settings = await Setting.findOne().sort({ createdAt: -1 });
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-  const shippingFee = settings?.shippingFee || 0;
-  const grandTotal = subtotal + shippingFee;
+  const [settings, couponResult] = await Promise.all([
+    StoreSetting.findOne().sort({ createdAt: -1 }),
+    resolveCouponDiscount({ couponCode: payload.couponCode, subtotal, productIds }),
+  ]);
+  const shippingFee = resolveShippingFee(payload.customer, settings);
+  const discountTotal = couponResult.discount;
+  const grandTotal = Math.max(subtotal + shippingFee - discountTotal, 0);
 
   const order = await Order.create({
     orderNumber: await nextOrderNumber(),
@@ -300,6 +330,9 @@ async function createOrder(payload) {
     items,
     subtotal,
     shippingFee,
+    discountTotal,
+    couponDiscount: discountTotal,
+    couponCode: couponResult.couponCode,
     grandTotal,
     paymentMethod: payload.paymentMethod,
     notes: payload.notes,

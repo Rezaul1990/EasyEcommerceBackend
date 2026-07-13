@@ -7,6 +7,10 @@ const storeSettingSchema = new mongoose.Schema(
     contactPhone: { type: String, default: "" },
     email: { type: String, default: "" },
     address: { type: String, default: "" },
+    deliveryCharges: {
+      dhaka: { type: Number, min: 0, default: 0 },
+      outsideDhaka: { type: Number, min: 0, default: 0 },
+    },
     socialLinks: {
       facebook: { type: String, default: "" },
       instagram: { type: String, default: "" },
