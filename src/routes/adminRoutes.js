@@ -1,6 +1,7 @@
 const express = require("express");
 const adminController = require("../controllers/adminController");
 const catalogController = require("../controllers/catalogController");
+const contentController = require("../controllers/contentController");
 const inventoryController = require("../controllers/inventoryController");
 const orderController = require("../controllers/orderController");
 const settingsController = require("../controllers/settingsController");
@@ -8,6 +9,7 @@ const { requireAuth, requireOwner, requirePermission } = require("../middlewares
 const { uploadImages, uploadImportFile } = require("../middlewares/uploadMiddleware");
 const { validate } = require("../middlewares/validate");
 const { categorySchema, productSchema, listProductsSchema, idParamsSchema, couponSchema } = require("../validations/catalogValidation");
+const { pageContentSchema, pageKeyParamsSchema } = require("../validations/contentValidation");
 const { inventoryListSchema, movementListSchema, stockAdjustmentSchema } = require("../validations/inventoryValidation");
 const { updateOrderStatusSchema, updatePaymentSchema, updateCourierSchema, noteSchema } = require("../validations/orderValidation");
 const { roleSchema } = require("../validations/roleValidation");
@@ -26,6 +28,10 @@ router.get("/dashboard/summary", requirePermission("dashboard.view"), asyncHandl
 router.get("/permissions", requireOwner, asyncHandler(adminController.permissions));
 router.get("/me/permissions", asyncHandler(adminController.myPermissions));
 router.get("/me/sidebar", asyncHandler(adminController.mySidebar));
+
+router.get("/content/pages", requirePermission("content.view"), asyncHandler(contentController.listPages));
+router.get("/content/:pageKey", requirePermission("content.view"), validate(pageKeyParamsSchema), asyncHandler(contentController.getAdminPage));
+router.put("/content/:pageKey", requirePermission("content.update"), validate(pageKeyParamsSchema), validate(pageContentSchema), asyncHandler(contentController.updatePage));
 
 router.get("/categories", requirePermission("categories.view"), asyncHandler(catalogController.adminCategories));
 router.post("/categories", requirePermission("categories.create"), validate(categorySchema), asyncHandler(catalogController.createCategory));

@@ -1,9 +1,11 @@
 const express = require("express");
 const catalogController = require("../controllers/catalogController");
+const contentController = require("../controllers/contentController");
 const orderController = require("../controllers/orderController");
 const settingsController = require("../controllers/settingsController");
 const { validate } = require("../middlewares/validate");
 const { listProductsSchema, slugParamsSchema } = require("../validations/catalogValidation");
+const { pageKeyParamsSchema } = require("../validations/contentValidation");
 const { createOrderSchema, trackOrderSchema } = require("../validations/orderValidation");
 const { asyncHandler } = require("../utils/asyncHandler");
 
@@ -20,5 +22,6 @@ router.post("/orders/track", validate(trackOrderSchema), asyncHandler(orderContr
 router.get("/settings/store", asyncHandler(settingsController.publicStore));
 router.get("/delivery-areas", asyncHandler(settingsController.publicDeliveryAreas));
 router.get("/payment-methods", asyncHandler(settingsController.publicPaymentMethods));
+router.get("/content/:pageKey", validate(pageKeyParamsSchema), asyncHandler(contentController.getPublicPage));
 
 module.exports = router;

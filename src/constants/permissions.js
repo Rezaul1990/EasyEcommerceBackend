@@ -40,6 +40,11 @@ const modules = [
     actions: ["view", "create", "update", "edit", "delete", "manage"],
   },
   {
+    module: "content",
+    group: "Content",
+    actions: ["view", "update", "publish", "manage"],
+  },
+  {
     module: "payments",
     group: "Payments",
     actions: ["view", "create", "update", "edit", "delete", "manage"],
