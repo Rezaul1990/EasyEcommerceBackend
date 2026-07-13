@@ -7,7 +7,7 @@ const settingSchema = new mongoose.Schema(
     contactEmail: { type: String, default: "" },
     contactPhone: { type: String, default: "" },
     address: { type: String, default: "" },
-    currency: { type: String, default: "USD" },
+    currency: { type: String, default: "BDT" },
     timezone: { type: String, default: "UTC" },
     shippingFee: { type: Number, default: 0, min: 0 },
     notifications: {

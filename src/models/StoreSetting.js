@@ -4,6 +4,7 @@ const storeSettingSchema = new mongoose.Schema(
   {
     shopName: { type: String, default: "EasyEcommerce" },
     logo: { type: String, default: "" },
+    currency: { type: String, default: "BDT", trim: true, uppercase: true },
     contactPhone: { type: String, default: "" },
     email: { type: String, default: "" },
     address: { type: String, default: "" },

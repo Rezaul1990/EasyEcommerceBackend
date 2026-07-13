@@ -3,6 +3,7 @@ const Order = require("../models/Order");
 const Product = require("../models/Product");
 const StoreSetting = require("../models/StoreSetting");
 const Coupon = require("../models/Coupon");
+const DeliveryArea = require("../models/DeliveryArea");
 const CourierCompany = require("../models/CourierCompany");
 const InventoryMovement = require("../models/InventoryMovement");
 const { env } = require("../config/env");
@@ -54,9 +55,20 @@ function normalizeLocation(value = "") {
   return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-function resolveShippingFee(customer = {}, settings = null) {
+async function resolveShippingFee(customer = {}, settings = null) {
+  const cityKey = normalizeLocation(customer.city);
+  const areaKey = normalizeLocation(customer.area);
+  if (cityKey && areaKey) {
+    const deliveryAreas = await DeliveryArea.find({ status: "active" });
+    const matchedArea = deliveryAreas.find((area) => {
+      const districtMatches = normalizeLocation(area.district) === cityKey;
+      const areaMatches = [area.area, area.upazila || ""].some((value) => normalizeLocation(value) === areaKey);
+      return districtMatches && areaMatches;
+    });
+    if (matchedArea) return Number(matchedArea.charge || 0);
+  }
   const charges = settings?.deliveryCharges || {};
-  return normalizeLocation(customer.city) === "dhaka" ? Number(charges.dhaka || 0) : Number(charges.outsideDhaka || 0);
+  return cityKey === "dhaka" ? Number(charges.dhaka || 0) : Number(charges.outsideDhaka || 0);
 }
 
 async function resolveCouponDiscount({ couponCode = "", subtotal = 0, productIds = [] }) {
@@ -320,7 +332,7 @@ async function createOrder(payload) {
     StoreSetting.findOne().sort({ createdAt: -1 }),
     resolveCouponDiscount({ couponCode: payload.couponCode, subtotal, productIds }),
   ]);
-  const shippingFee = resolveShippingFee(payload.customer, settings);
+  const shippingFee = await resolveShippingFee(payload.customer, settings);
   const discountTotal = couponResult.discount;
   const grandTotal = Math.max(subtotal + shippingFee - discountTotal, 0);
 
