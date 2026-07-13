@@ -11,6 +11,7 @@ const productVariantSchema = new mongoose.Schema(
     options: { type: Map, of: String, default: {} },
     sku: { type: String, required: true, trim: true, uppercase: true },
     price: { type: Number, required: true, min: 0 },
+    compareAtPrice: { type: Number, min: 0, default: null },
     discountType: discountSchema.type,
     discountValue: discountSchema.value,
     finalPrice: { type: Number, required: true, min: 0 },

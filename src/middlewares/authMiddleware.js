@@ -33,6 +33,15 @@ function requirePermission(permission) {
   };
 }
 
+function requireAnyPermission(permissions) {
+  return function anyPermissionMiddleware(req, res, next) {
+    const role = req.role;
+    if (!role) return next(new AppError("Permission check requires authentication", 500));
+    if (role.slug === "owner" || permissions.some((permission) => role.permissions.includes(permission))) return next();
+    return next(new AppError("You do not have permission to perform this action", 403));
+  };
+}
+
 function requireOwner(req, res, next) {
   const role = req.role;
   if (!role) return next(new AppError("Owner check requires authentication", 500));
@@ -40,4 +49,4 @@ function requireOwner(req, res, next) {
   return next(new AppError("Only the store owner can perform this action", 403));
 }
 
-module.exports = { requireAuth, requireOwner, requirePermission };
+module.exports = { requireAnyPermission, requireAuth, requireOwner, requirePermission };

@@ -5,7 +5,7 @@ const contentController = require("../controllers/contentController");
 const inventoryController = require("../controllers/inventoryController");
 const orderController = require("../controllers/orderController");
 const settingsController = require("../controllers/settingsController");
-const { requireAuth, requireOwner, requirePermission } = require("../middlewares/authMiddleware");
+const { requireAnyPermission, requireAuth, requireOwner, requirePermission } = require("../middlewares/authMiddleware");
 const { uploadImages, uploadImportFile } = require("../middlewares/uploadMiddleware");
 const { validate } = require("../middlewares/validate");
 const { categorySchema, productSchema, listProductsSchema, idParamsSchema, couponSchema } = require("../validations/catalogValidation");
@@ -49,8 +49,8 @@ router.get("/coupons/:id", requirePermission("coupons.view"), validate(idParamsS
 router.put("/coupons/:id", requirePermission("coupons.update"), validate(idParamsSchema), validate(couponSchema), asyncHandler(catalogController.updateCoupon));
 router.delete("/coupons/:id", requirePermission("coupons.delete"), validate(idParamsSchema), asyncHandler(catalogController.deleteCoupon));
 
-router.post("/uploads/images", requirePermission("products.create"), uploadImages.array("images", 10), asyncHandler(catalogController.uploadImages));
-router.delete("/uploads/images", requirePermission("products.create"), asyncHandler(catalogController.deleteUploadedImage));
+router.post("/uploads/images", requireAnyPermission(["products.create", "products.update"]), uploadImages.array("images", 10), asyncHandler(catalogController.uploadImages));
+router.delete("/uploads/images", requireAnyPermission(["products.create", "products.update"]), asyncHandler(catalogController.deleteUploadedImage));
 
 router.get("/inventory", requirePermission("inventory.view"), validate(inventoryListSchema), asyncHandler(inventoryController.listInventory));
 router.get("/inventory/low-stock", requirePermission("inventory.view"), validate(inventoryListSchema), asyncHandler(inventoryController.lowStock));

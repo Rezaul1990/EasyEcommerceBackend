@@ -37,6 +37,7 @@ const variantSchema = z.object({
   options: z.record(z.string(), z.string()).default({}),
   sku: z.string().min(2),
   price: z.number().nonnegative(),
+  compareAtPrice: z.number().nonnegative().nullable().optional(),
   discountType: z.enum(["none", "fixed", "percentage"]).default("none"),
   discountValue: z.number().nonnegative().default(0),
   stock: z.number().int().nonnegative().default(0),
