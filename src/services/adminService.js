@@ -22,6 +22,27 @@ async function listRoles() {
   return Role.find().sort({ isSystemRole: -1, name: 1 });
 }
 
+async function listAssignableRoles(actor) {
+  const query = { slug: { $ne: "owner" }, status: "active" };
+  const roles = await Role.find(query).sort({ isSystemRole: -1, name: 1 });
+  if (actor.roleId?.slug === "owner") return roles;
+
+  const actorPermissions = new Set(currentPermissions(actor));
+  return roles.filter((role) => role.permissions.every((permission) => actorPermissions.has(permission)));
+}
+
+async function ensureRoleAssignable(roleId, actor) {
+  const role = await Role.findById(roleId);
+  if (!role) throw new AppError("Role not found", 404);
+  if (role.slug === "owner") throw new AppError("Owner role cannot be assigned to staff", 403);
+  if (actor.roleId?.slug === "owner") return role;
+
+  const actorPermissions = new Set(currentPermissions(actor));
+  const canAssign = role.permissions.every((permission) => actorPermissions.has(permission));
+  if (!canAssign) throw new AppError("You cannot assign a role with permissions you do not have", 403);
+  return role;
+}
+
 async function getRole(id) {
   const role = await Role.findById(id);
   if (!role) throw new AppError("Role not found", 404);
@@ -64,9 +85,8 @@ async function listStaff() {
   return users.map((user) => sanitizeUser(user));
 }
 
-async function createStaff(payload, actorId) {
-  const role = await Role.findById(payload.roleId);
-  if (!role) throw new AppError("Role not found", 404);
+async function createStaff(payload, actor) {
+  const role = await ensureRoleAssignable(payload.roleId, actor);
   const duplicate = await User.findOne({ email: payload.email.toLowerCase() });
   if (duplicate) throw new AppError("A user with this email already exists", 409);
 
@@ -78,15 +98,15 @@ async function createStaff(payload, actorId) {
     passwordHash,
     status: "pending",
     inviteStatus: "pending",
-    createdBy: actorId,
-    updatedBy: actorId,
+    createdBy: actor._id,
+    updatedBy: actor._id,
   });
 
   await InviteToken.create({
     user: user._id,
     tokenHash: hashToken(token),
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    createdBy: actorId,
+    createdBy: actor._id,
   });
 
   await user.populate("roleId");
@@ -99,19 +119,18 @@ async function getStaff(id) {
   return sanitizeUser(user);
 }
 
-async function updateStaff(id, payload, actorId) {
+async function updateStaff(id, payload, actor) {
   const user = await User.findById(id).populate("roleId");
   if (!user) throw new AppError("User not found", 404);
 
   if (payload.roleId) {
-    const role = await Role.findById(payload.roleId);
-    if (!role) throw new AppError("Role not found", 404);
+    const role = await ensureRoleAssignable(payload.roleId, actor);
     user.roleId = role._id;
   }
 
   if (payload.name) user.name = payload.name;
   if (payload.status) user.status = payload.status;
-  user.updatedBy = actorId;
+  user.updatedBy = actor._id;
   await user.save();
   await user.populate("roleId");
   return sanitizeUser(user);
@@ -286,6 +305,7 @@ async function dashboardSummary() {
 
 module.exports = {
   listRoles,
+  listAssignableRoles,
   getRole,
   createRole,
   updateRole,

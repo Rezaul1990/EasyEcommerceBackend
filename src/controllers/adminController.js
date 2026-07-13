@@ -18,6 +18,11 @@ async function listRoles(req, res) {
   return sendSuccess(res, { message: "Roles loaded", data });
 }
 
+async function listAssignableRoles(req, res) {
+  const data = await adminService.listAssignableRoles(req.user);
+  return sendSuccess(res, { message: "Assignable roles loaded", data });
+}
+
 async function getRole(req, res) {
   const data = await adminService.getRole(req.params.id);
   return sendSuccess(res, { message: "Role loaded", data });
@@ -52,13 +57,13 @@ async function getStaff(req, res) {
 }
 
 async function createStaff(req, res) {
-  const data = await adminService.createStaff(req.body, req.user._id);
+  const data = await adminService.createStaff(req.body, req.user);
   await writeAudit({ req, action: "create", module: "staff", targetType: "User", targetId: data.user.id, newValue: data.user });
   return sendSuccess(res, { statusCode: 201, message: "Staff invite created", data });
 }
 
 async function updateStaff(req, res) {
-  const data = await adminService.updateStaff(req.params.id, req.body, req.user._id);
+  const data = await adminService.updateStaff(req.params.id, req.body, req.user);
   await writeAudit({ req, action: "update", module: "staff", targetType: "User", targetId: data.id, newValue: data });
   return sendSuccess(res, { message: "Staff user updated", data });
 }
@@ -115,6 +120,7 @@ module.exports = {
   permissions,
   dashboard,
   listRoles,
+  listAssignableRoles,
   getRole,
   createRole,
   updateRole,
