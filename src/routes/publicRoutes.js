@@ -13,6 +13,7 @@ router.get("/categories", asyncHandler(catalogController.publicCategories));
 router.get("/products", validate(listProductsSchema), asyncHandler(catalogController.publicProducts));
 router.get("/products/:slug", validate(slugParamsSchema), asyncHandler(catalogController.productBySlug));
 router.get("/products/:slug/coupons", validate(slugParamsSchema), asyncHandler(catalogController.productCoupons));
+router.get("/coupons", asyncHandler(catalogController.publicCoupons));
 router.post("/coupons/validate", asyncHandler(catalogController.validateCoupon));
 router.post("/orders", validate(createOrderSchema), asyncHandler(orderController.createOrder));
 router.post("/orders/track", validate(trackOrderSchema), asyncHandler(orderController.trackOrder));

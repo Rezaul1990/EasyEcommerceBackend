@@ -69,6 +69,11 @@ async function adminCoupons(req, res) {
   return sendSuccess(res, { message: "Coupons loaded", data });
 }
 
+async function publicCoupons(req, res) {
+  const data = await catalogService.listPublicCoupons();
+  return sendSuccess(res, { message: "Active coupons loaded", data });
+}
+
 async function createCoupon(req, res) {
   const data = await catalogService.createCoupon(req.body, req.user._id);
   await writeAudit({ req, action: "create", module: "coupons", targetType: "Coupon", targetId: data._id, newValue: data });
@@ -128,6 +133,7 @@ module.exports = {
   updateProduct,
   deleteProduct,
   adminCoupons,
+  publicCoupons,
   createCoupon,
   getCoupon,
   updateCoupon,

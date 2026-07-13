@@ -126,6 +126,10 @@ async function getProductBySlug(slug) {
   return product;
 }
 
+async function disableExpiredCoupons() {
+  await Coupon.updateMany({ status: "active", expiryDate: { $lte: new Date() } }, { $set: { status: "inactive" } });
+}
+
 async function createProduct(payload, actorId) {
   const sku = await makeUniqueSku(payload.sku || payload.name);
   return Product.create({ ...normalizeProductPayload({ ...payload, sku, baseSku: payload.baseSku || sku }), slug: makeSlug(payload.name), createdBy: actorId, updatedBy: actorId });
@@ -143,7 +147,16 @@ async function updateProduct(id, payload, actorId) {
 }
 
 async function listCoupons() {
+  await disableExpiredCoupons();
   return Coupon.find().populate("products", "name slug baseSku sku").sort({ createdAt: -1 });
+}
+
+async function listPublicCoupons() {
+  await disableExpiredCoupons();
+  return Coupon.find({ status: "active", expiryDate: { $gt: new Date() } })
+    .populate("products", "name slug baseSku sku")
+    .sort({ discountValue: -1, expiryDate: 1 })
+    .limit(8);
 }
 
 async function createCoupon(payload, actorId) {
@@ -175,6 +188,7 @@ async function deleteCoupon(id) {
 async function productCoupons(slug) {
   const product = await Product.findOne({ slug, status: "active" });
   if (!product) throw new AppError("Product not found", 404);
+  await disableExpiredCoupons();
   const now = new Date();
   return Coupon.find({
     status: "active",
@@ -184,6 +198,7 @@ async function productCoupons(slug) {
 }
 
 async function validateCoupon({ code, subtotal = 0, productIds = [] }) {
+  await disableExpiredCoupons();
   const coupon = await Coupon.findOne({ code: code.toUpperCase() });
   if (!coupon) throw new AppError("Coupon code is invalid", 404);
   if (coupon.status !== "active") throw new AppError("Coupon is inactive", 422);
@@ -221,6 +236,7 @@ module.exports = {
   updateProduct,
   deleteProduct,
   listCoupons,
+  listPublicCoupons,
   createCoupon,
   getCoupon,
   updateCoupon,
