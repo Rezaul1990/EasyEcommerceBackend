@@ -1,6 +1,7 @@
 const PageContent = require("../models/PageContent");
 
 const editablePages = [
+  { pageKey: "home", label: "Home", path: "/" },
   { pageKey: "products", label: "Products", path: "/products" },
   { pageKey: "checkout", label: "Checkout", path: "/checkout" },
   { pageKey: "track-order", label: "Track Order", path: "/track-order" },
