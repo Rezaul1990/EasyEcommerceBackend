@@ -1,5 +1,8 @@
 const { z } = require("zod");
 
+const nonnegativeNumber = z.coerce.number().nonnegative();
+const nonnegativeInteger = z.coerce.number().int().nonnegative();
+
 const imageUrlSchema = z.string().refine(
   (value) => {
     if (value.startsWith("/uploads/")) return true;
@@ -33,16 +36,16 @@ const categorySchema = z.object({
 });
 
 const variantSchema = z.object({
-  variantName: z.string().min(1),
-  options: z.record(z.string(), z.string()).default({}),
-  sku: z.string().min(2),
-  price: z.number().nonnegative(),
-  compareAtPrice: z.number().nonnegative().nullable().optional(),
+  variantName: z.string().trim().min(1),
+  options: z.record(z.string().trim(), z.string().trim()).default({}),
+  sku: z.string().trim().min(2),
+  price: nonnegativeNumber,
+  compareAtPrice: nonnegativeNumber.nullable().optional(),
   discountType: z.enum(["none", "fixed", "percentage"]).default("none"),
-  discountValue: z.number().nonnegative().default(0),
-  stock: z.number().int().nonnegative().default(0),
-  reservedStock: z.number().int().nonnegative().default(0),
-  lowStockThreshold: z.number().int().nonnegative().default(5),
+  discountValue: nonnegativeNumber.default(0),
+  stock: nonnegativeInteger.default(0),
+  reservedStock: nonnegativeInteger.default(0),
+  lowStockThreshold: nonnegativeInteger.default(5),
   image: z.string().optional().default(""),
   status: z.enum(["active", "inactive"]).default("active"),
 });
