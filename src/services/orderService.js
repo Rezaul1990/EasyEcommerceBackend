@@ -40,40 +40,65 @@ function productAvailableStock(product) {
   return (product.stockQuantity ?? product.stock ?? 0) - (product.reservedStock || 0);
 }
 
-async function applySimpleProductStockChange({ productId, quantity, type, orderId, actorId = null, note = "" }) {
+function variantAvailableStock(variant) {
+  return (variant.stock || 0) - (variant.reservedStock || 0);
+}
+
+function variantLabel(variant) {
+  const optionValues = Array.from(variant.options?.values?.() || []).filter(Boolean);
+  return optionValues.length ? optionValues.join(" / ") : variant.variantName;
+}
+
+function findProductVariant(product, item = {}) {
+  if (!item.variantId && !item.variantSku) return null;
+  const byId = item.variantId ? product.variants.id(item.variantId) : null;
+  if (byId) return byId;
+  return item.variantSku ? product.variants.find((variant) => variant.sku === item.variantSku) : null;
+}
+
+async function applySimpleProductStockChange({ productId, variantId = "", quantity, type, orderId, actorId = null, note = "" }) {
   const product = await Product.findById(productId);
   if (!product) throw new AppError("Product not found while updating stock", 404);
+  const variant = variantId ? product.variants.id(variantId) : null;
+  const stockTarget = variant || product;
 
-  const previousStock = product.stockQuantity ?? product.stock ?? 0;
-  const previousReservedStock = product.reservedStock || 0;
+  const previousStock = variant ? variant.stock || 0 : product.stockQuantity ?? product.stock ?? 0;
+  const previousReservedStock = stockTarget.reservedStock || 0;
 
   if (type === "reserve") {
     if (previousStock - previousReservedStock < quantity) throw new AppError(`${product.name} does not have enough available stock`, 422);
-    product.reservedStock = previousReservedStock + quantity;
+    stockTarget.reservedStock = previousReservedStock + quantity;
   }
 
-  if (type === "release_reserve") product.reservedStock = Math.max(previousReservedStock - quantity, 0);
+  if (type === "release_reserve") stockTarget.reservedStock = Math.max(previousReservedStock - quantity, 0);
 
   if (type === "confirm_reduce") {
-    product.stockQuantity = Math.max(previousStock - quantity, 0);
-    product.stock = Math.max((product.stock ?? previousStock) - quantity, 0);
-    product.reservedStock = Math.max(previousReservedStock - quantity, 0);
+    if (variant) variant.stock = Math.max(previousStock - quantity, 0);
+    else {
+      product.stockQuantity = Math.max(previousStock - quantity, 0);
+      product.stock = Math.max((product.stock ?? previousStock) - quantity, 0);
+    }
+    stockTarget.reservedStock = Math.max(previousReservedStock - quantity, 0);
   }
 
   if (type === "cancel_return") {
-    product.stockQuantity = previousStock + quantity;
-    product.stock = (product.stock ?? previousStock) + quantity;
+    if (variant) variant.stock = previousStock + quantity;
+    else {
+      product.stockQuantity = previousStock + quantity;
+      product.stock = (product.stock ?? previousStock) + quantity;
+    }
   }
 
   await product.save();
   await InventoryMovement.create({
     product: product._id,
+    variantSku: variant?.sku || "",
     type,
     quantity,
     previousStock,
-    newStock: product.stockQuantity ?? product.stock ?? 0,
+    newStock: variant ? variant.stock || 0 : product.stockQuantity ?? product.stock ?? 0,
     previousReservedStock,
-    newReservedStock: product.reservedStock || 0,
+    newReservedStock: stockTarget.reservedStock || 0,
     order: orderId,
     note,
     createdBy: actorId,
@@ -84,7 +109,7 @@ async function applySimpleProductStockChange({ productId, quantity, type, orderI
 
 async function reserveOrderStock(order) {
   for (const item of order.items) {
-    await applySimpleProductStockChange({ productId: item.productId, quantity: item.quantity, type: "reserve", orderId: order._id, note: "Order placed" });
+    await applySimpleProductStockChange({ productId: item.productId, variantId: item.variantId, quantity: item.quantity, type: "reserve", orderId: order._id, note: "Order placed" });
   }
   order.stockState = "reserved";
   order.stockReservedAt = new Date();
@@ -95,7 +120,7 @@ async function reserveOrderStock(order) {
 async function confirmReservedStock(order, actorId) {
   if (order.stockState !== "reserved") return order;
   for (const item of order.items) {
-    await applySimpleProductStockChange({ productId: item.productId, quantity: item.quantity, type: "confirm_reduce", orderId: order._id, actorId, note: "Order confirmed" });
+    await applySimpleProductStockChange({ productId: item.productId, variantId: item.variantId, quantity: item.quantity, type: "confirm_reduce", orderId: order._id, actorId, note: "Order confirmed" });
   }
   order.stockState = "reduced";
   order.stockReducedAt = new Date();
@@ -105,7 +130,7 @@ async function confirmReservedStock(order, actorId) {
 async function releaseReservedStock(order, actorId) {
   if (order.stockState !== "reserved") return order;
   for (const item of order.items) {
-    await applySimpleProductStockChange({ productId: item.productId, quantity: item.quantity, type: "release_reserve", orderId: order._id, actorId, note: "Pending order cancelled" });
+    await applySimpleProductStockChange({ productId: item.productId, variantId: item.variantId, quantity: item.quantity, type: "release_reserve", orderId: order._id, actorId, note: "Pending order cancelled" });
   }
   order.stockState = "released";
   order.stockReleasedAt = new Date();
@@ -115,7 +140,7 @@ async function releaseReservedStock(order, actorId) {
 async function restockReducedOrder(order, actorId) {
   if (order.stockState !== "reduced") return order;
   for (const item of order.items) {
-    await applySimpleProductStockChange({ productId: item.productId, quantity: item.quantity, type: "cancel_return", orderId: order._id, actorId, note: "Order returned" });
+    await applySimpleProductStockChange({ productId: item.productId, variantId: item.variantId, quantity: item.quantity, type: "cancel_return", orderId: order._id, actorId, note: "Order returned" });
   }
   order.stockState = "restocked";
   order.stockRestockedAt = new Date();
@@ -246,15 +271,21 @@ async function createOrder(payload) {
   const items = payload.items.map((item) => {
     const product = productMap.get(item.productId);
     if (!product) throw new AppError("One or more products are unavailable", 422);
-    if (productAvailableStock(product) < item.quantity) throw new AppError(`${product.name} does not have enough stock`, 422);
+    const variant = findProductVariant(product, item);
+    if ((item.variantId || item.variantSku) && !variant) throw new AppError(`${product.name} selected option is unavailable`, 422);
+    const availableStock = variant ? variantAvailableStock(variant) : productAvailableStock(product);
+    if (availableStock < item.quantity) throw new AppError(`${product.name} does not have enough stock`, 422);
+    const unitPrice = variant ? variant.finalPrice || variant.price : product.finalPrice || product.price;
     return {
       productId: product._id,
+      variantId: variant?._id?.toString() || "",
       name: product.name,
-      sku: product.sku,
-      imageUrl: product.imageUrls?.[0] || product.imageAssets?.[0]?.url || "",
+      sku: variant?.sku || product.sku,
+      imageUrl: variant?.image || product.imageUrls?.[0] || product.imageAssets?.[0]?.url || "",
+      variant: variant ? variantLabel(variant) : "",
       quantity: item.quantity,
-      unitPrice: product.price,
-      subtotal: product.price * item.quantity,
+      unitPrice,
+      subtotal: unitPrice * item.quantity,
     };
   });
 
