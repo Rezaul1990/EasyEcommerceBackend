@@ -19,7 +19,7 @@ async function updatePage(req, res) {
 }
 
 async function getPublicPage(req, res) {
-  const data = await contentService.getPage(req.params.pageKey);
+  const data = await contentService.getPublishedPage(req.params.pageKey);
   return sendSuccess(res, { message: "Page content loaded", data });
 }
 

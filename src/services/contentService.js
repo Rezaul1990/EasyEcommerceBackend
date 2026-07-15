@@ -68,6 +68,11 @@ async function getPage(pageKey) {
   return toPayload(doc) || { pageKey, content: {}, styles: {}, layout: {}, sections: [], status: "published", updatedAt: null, publishedAt: null };
 }
 
+async function getPublishedPage(pageKey) {
+  const doc = await PageContent.findOne({ pageKey: pageKey.toLowerCase(), status: "published" });
+  return toPayload(doc) || { pageKey, content: {}, styles: {}, layout: {}, sections: [], status: "published", updatedAt: null, publishedAt: null };
+}
+
 async function updatePage(pageKey, payload, actorId) {
   const content = normalizeContent(payload.content);
   const styles = normalizeSectionSettings(payload.styles);
@@ -88,4 +93,4 @@ async function updatePage(pageKey, payload, actorId) {
   return toPayload(doc);
 }
 
-module.exports = { editablePages, getPage, listPages, updatePage };
+module.exports = { editablePages, getPage, getPublishedPage, listPages, updatePage };
