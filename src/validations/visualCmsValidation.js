@@ -1,6 +1,6 @@
 const { z } = require("zod");
 
-const sectionTypes = ["hero", "featured-products", "content", "cta"];
+const sectionTypes = ["hero", "featured-products", "page-header", "content", "cta"];
 const styleKeys = [
   "backgroundColor",
   "headingColor",
@@ -61,6 +61,7 @@ const pageSectionSchema = z
     id: z.string().min(3).max(80).regex(/^[a-zA-Z0-9_-]+$/),
     pageId: z.string().min(2).max(80).regex(/^[a-z0-9-]+$/),
     type: z.enum(sectionTypes),
+    sourceId: z.string().min(3).max(80).regex(/^[a-z0-9-]+$/),
     internalName: z.string().min(1).max(120),
     sortOrder: z.number().int().min(0).max(1000),
     isActive: z.boolean().default(true),
@@ -69,6 +70,8 @@ const pageSectionSchema = z
     layout: visualCmsLayoutSchema,
   })
   .strict();
+
+const pageSectionsSchema = z.array(pageSectionSchema).max(30).default([]);
 
 const sectionSettingsRecordSchema = z.record(
   z.string().min(1).max(80).regex(/^[a-z0-9-]+$/),
@@ -83,6 +86,7 @@ const sectionLayoutRecordSchema = z.record(
 module.exports = {
   layoutKeys,
   pageSectionSchema,
+  pageSectionsSchema,
   sectionTypes,
   sectionLayoutRecordSchema,
   sectionSettingsRecordSchema,

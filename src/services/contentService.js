@@ -1,12 +1,12 @@
 const PageContent = require("../models/PageContent");
 
 const editablePages = [
-  { pageKey: "home", label: "Home", path: "/" },
-  { pageKey: "products", label: "Products", path: "/products" },
-  { pageKey: "checkout", label: "Checkout", path: "/checkout" },
-  { pageKey: "track-order", label: "Track Order", path: "/track-order" },
-  { pageKey: "cart", label: "Cart", path: "/cart" },
-  { pageKey: "wishlist", label: "Wishlist", path: "/wishlist" },
+  { pageKey: "home", label: "Home", path: "/", sections: [{ id: "hero", type: "hero" }, { id: "featured-products", type: "featured-products" }] },
+  { pageKey: "products", label: "Products", path: "/products", sections: [{ id: "page-header", type: "page-header" }] },
+  { pageKey: "checkout", label: "Checkout", path: "/checkout", sections: [{ id: "page-header", type: "page-header" }] },
+  { pageKey: "track-order", label: "Track Order", path: "/track-order", sections: [{ id: "page-header", type: "page-header" }] },
+  { pageKey: "cart", label: "Cart", path: "/cart", sections: [{ id: "page-header", type: "page-header" }] },
+  { pageKey: "wishlist", label: "Wishlist", path: "/wishlist", sections: [{ id: "page-header", type: "page-header" }] },
 ];
 
 function normalizeContent(content = {}) {
@@ -25,6 +25,24 @@ function normalizeSectionSettings(settings = {}) {
   }, {});
 }
 
+function normalizeSections(pageKey, sections = []) {
+  const page = editablePages.find((item) => item.pageKey === pageKey.toLowerCase());
+  const allowed = new Map((page?.sections || []).map((section) => [section.id, section.type]));
+  return sections
+    .filter((section) => section && typeof section === "object" && section.pageId === pageKey.toLowerCase() && allowed.has(section.sourceId))
+    .map((section, index) => ({
+      id: section.id,
+      pageId: pageKey.toLowerCase(),
+      type: allowed.get(section.sourceId),
+      sourceId: section.sourceId,
+      internalName: String(section.internalName || section.sourceId).slice(0, 120),
+      sortOrder: Number.isInteger(section.sortOrder) ? section.sortOrder : index,
+      isActive: section.isActive !== false,
+    }))
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((section, index) => ({ ...section, sortOrder: index }));
+}
+
 function toPayload(doc) {
   if (!doc) return null;
   return {
@@ -32,6 +50,7 @@ function toPayload(doc) {
     content: Object.fromEntries(doc.content || []),
     styles: Object.fromEntries(doc.styles || []),
     layout: Object.fromEntries(doc.layout || []),
+    sections: doc.sections || [],
     status: doc.status,
     updatedAt: doc.updatedAt,
     publishedAt: doc.publishedAt,
@@ -46,19 +65,21 @@ async function listPages() {
 
 async function getPage(pageKey) {
   const doc = await PageContent.findOne({ pageKey: pageKey.toLowerCase() });
-  return toPayload(doc) || { pageKey, content: {}, styles: {}, layout: {}, status: "published", updatedAt: null, publishedAt: null };
+  return toPayload(doc) || { pageKey, content: {}, styles: {}, layout: {}, sections: [], status: "published", updatedAt: null, publishedAt: null };
 }
 
 async function updatePage(pageKey, payload, actorId) {
   const content = normalizeContent(payload.content);
   const styles = normalizeSectionSettings(payload.styles);
   const layout = normalizeSectionSettings(payload.layout);
+  const sections = normalizeSections(pageKey, payload.sections);
   const status = payload.status || "published";
   const update = {
     pageKey: pageKey.toLowerCase(),
     content,
     styles,
     layout,
+    sections,
     status,
     updatedBy: actorId,
     ...(status === "published" ? { publishedAt: new Date() } : {}),
