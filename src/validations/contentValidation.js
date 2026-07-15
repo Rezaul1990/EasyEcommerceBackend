@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { sectionLayoutRecordSchema, sectionSettingsRecordSchema } = require("./visualCmsValidation");
 
 const pageKeyParamsSchema = z.object({
   params: z.object({
@@ -9,6 +10,8 @@ const pageKeyParamsSchema = z.object({
 const pageContentSchema = z.object({
   body: z.object({
     content: z.record(z.string(), z.string()).default({}),
+    styles: sectionSettingsRecordSchema.optional().default({}),
+    layout: sectionLayoutRecordSchema.optional().default({}),
     status: z.enum(["draft", "published"]).optional().default("published"),
   }),
 });

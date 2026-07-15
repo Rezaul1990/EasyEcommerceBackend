@@ -17,11 +17,21 @@ function normalizeContent(content = {}) {
   }, {});
 }
 
+function normalizeSectionSettings(settings = {}) {
+  return Object.entries(settings).reduce((result, [sectionId, values]) => {
+    if (typeof sectionId !== "string" || !values || typeof values !== "object" || Array.isArray(values)) return result;
+    result[sectionId] = Object.fromEntries(Object.entries(values).filter(([, value]) => typeof value === "string" && value.trim()));
+    return result;
+  }, {});
+}
+
 function toPayload(doc) {
   if (!doc) return null;
   return {
     pageKey: doc.pageKey,
     content: Object.fromEntries(doc.content || []),
+    styles: Object.fromEntries(doc.styles || []),
+    layout: Object.fromEntries(doc.layout || []),
     status: doc.status,
     updatedAt: doc.updatedAt,
     publishedAt: doc.publishedAt,
@@ -36,15 +46,19 @@ async function listPages() {
 
 async function getPage(pageKey) {
   const doc = await PageContent.findOne({ pageKey: pageKey.toLowerCase() });
-  return toPayload(doc) || { pageKey, content: {}, status: "published", updatedAt: null, publishedAt: null };
+  return toPayload(doc) || { pageKey, content: {}, styles: {}, layout: {}, status: "published", updatedAt: null, publishedAt: null };
 }
 
 async function updatePage(pageKey, payload, actorId) {
   const content = normalizeContent(payload.content);
+  const styles = normalizeSectionSettings(payload.styles);
+  const layout = normalizeSectionSettings(payload.layout);
   const status = payload.status || "published";
   const update = {
     pageKey: pageKey.toLowerCase(),
     content,
+    styles,
+    layout,
     status,
     updatedBy: actorId,
     ...(status === "published" ? { publishedAt: new Date() } : {}),
