@@ -237,7 +237,7 @@ function sidebarForUser(user) {
     { label: "Categories", href: "/admin/categories", module: "categories" },
     { label: "Orders", href: "/admin/orders", module: "orders" },
     { label: "Coupons", href: "/admin/coupons", module: "coupons" },
-    { label: "Content Editor", href: "/admin/content", module: "content" },
+    { label: "Visual Editor", href: "/admin/visual-editor", module: "content" },
     { label: "Inventory", href: "/admin/inventory", module: "inventory" },
     { label: "Reports", href: "/admin/reports", module: "reports" },
     { label: "Settings", href: "/admin/settings", module: "settings" },

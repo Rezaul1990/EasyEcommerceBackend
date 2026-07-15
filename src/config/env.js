@@ -13,7 +13,7 @@ const env = {
   storeTimezone: process.env.STORE_TIMEZONE || "Asia/Dhaka",
   weekStartsOn: Number(process.env.STORE_WEEK_STARTS_ON || 1),
   uploadDir: process.env.UPLOAD_DIR || "uploads",
-  visualCmsEditorEnabled: process.env.VISUAL_CMS_EDITOR_ENABLED === "true",
+  visualCmsEditorEnabled: process.env.VISUAL_CMS_EDITOR_ENABLED !== "false",
   storage: {
     driver: process.env.STORAGE_DRIVER || "local",
     folder: process.env.STORAGE_FOLDER || "easy-ecommerce/products",
